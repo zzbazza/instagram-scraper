@@ -11,7 +11,7 @@ const posts = {};
 
 async function main() {
     const input = await Apify.getValue('INPUT');
-    const { proxy, urls } = input;
+    const { proxy, urls, postCountLimit = 200 } = input;
 
     try {
         if (!proxy) throw errors.proxyIsRequired();
@@ -26,9 +26,9 @@ async function main() {
         process.exit(1);
     }
 
-    const requestListSources = urls.map(({ key, value }) => ({
-        url: key,
-        userData: { limit: value },
+    const requestListSources = urls.map((url) => ({
+        url,
+        userData: { limit: postCountLimit },
     }));
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);

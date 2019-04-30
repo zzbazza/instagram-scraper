@@ -14,7 +14,8 @@ Input of this actor should be JSON containing list of pages on instagram which s
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| urls | Array | List of key value objects where key is instagram URL and value is number of items to load  |
+| urls | Array | List of instagram URLs |
+| postCountLimit | Integer | How many posts should be loaded from each URL (limit is per page)  |
 | proxy | Object | Proxy configuration |
 
 ### Important considerations
@@ -23,9 +24,8 @@ Input of this actor should be JSON containing list of pages on instagram which s
 ### Input example
 ```json
 {
-    "urls": [
-        { "key": "https://www.instagram.com/avengers/", "value": 100 }
-    ],
+    "urls": [ "https://www.instagram.com/teslamotors/" ],
+    "postCountLimit": 100,
     "proxy": { "useApifyProxy": true, "apifyProxyGrouups": [] }
 }
 

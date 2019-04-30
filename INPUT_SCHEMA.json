@@ -7,17 +7,21 @@
         "urls": {
             "title": "URLs",
             "type": "array",
-            "description": "From which pages should posts be loaded and how many posts to scrape",
-            "editor": "keyValue",
-            "placeholderKey": "URL",
-            "placeholderValue": "Max posts",
-            "patternKey": "https:\\/\\/www\\.instagram\\.com\\/\\.+",
-            "patternValue": "\\d+",
+            "description": "From which pages should posts be loaded. Provide complete url to the profile, hashtag or place.",
+            "editor": "stringList",
+            "placeholderValue": "URL",
+            "patternValue": "https:\\/\\/www\\.instagram\\.com\\/\\.+",
             "uniqueItems": true,
             "minItems": 1,
-            "prefill": [
-                { "key": "https://www.instagram.com/explore/tags/nodejs/", "value": 100 }
-            ]
+            "prefill": ["https://www.instagram.com/explore/tags/nodejs/"]
+        },
+        "postCountLimit": {
+            "title": "Max posts",
+            "type": "integer",
+            "description": "How many posts to scrape from each page",
+            "editor": "number",
+            "unit": "per page",
+            "default": 200
         },
         "proxy": {
             "title": "Proxy configuration",
