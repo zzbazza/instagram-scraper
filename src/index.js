@@ -66,14 +66,17 @@ async function main() {
             const checkedVariable = getCheckedVariable(page.itemSpec.pageType);
 
             // Skip queries for other stuff then posts
-            if (!responseUrl.includes(checkedVariable)) return;
+            if (!responseUrl.includes(checkedVariable) || !responseUrl.includes('%22first%22')) return;
 
             const data = await response.json();
             const timeline = getPostsFromGraphQL(page.itemSpec.pageType, data['data']);
-
+            
             posts[page.itemSpec.id] = posts[page.itemSpec.id].concat(timeline.posts);
 
             if (!initData[page.itemSpec.id]) initData[page.itemSpec.id] = timeline;
+            else if (initData[page.itemSpec.id].hasNextPage && !timeline.hasNextPage) {
+                initData[page.itemSpec.id].hasNextPage = false;
+            }
 
             log(page.itemSpec, `${timeline.posts.length} items added, ${posts[page.itemSpec.id].length} items total`);
         });
@@ -96,6 +99,8 @@ async function main() {
             log(itemSpec, 'Waiting for initial data to load');
             while (!initData[itemSpec.id]) await page.waitFor(100);
         }
+
+        await page.waitFor(500);
 
         if (initData[itemSpec.id].hasNextPage && posts[itemSpec.id].length < request.userData.limit) {
             await page.waitFor(1000);

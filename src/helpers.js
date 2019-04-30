@@ -63,8 +63,8 @@ const getPostsFromGraphQL = (pageType, data) => {
             timeline = data.hashtag.edge_hashtag_to_media;
             break
     }
-    const posts = timeline.edges;
-    const hasNextPage = timeline.page_info.has_next_page;
+    const posts = timeline ? timeline.edges : [];
+    const hasNextPage = timeline ? timeline.page_info.has_next_page : false;
     return { posts, hasNextPage };
 }
 
@@ -130,7 +130,12 @@ const loadMoreItems = async (pageData, page, retry = 0) => {
     await page.keyboard.press('PageUp');
     const checkedVariable = getCheckedVariable(pageData.pageType);
     const responsePromise = page.waitForResponse(
-        response => response.url().startsWith(GRAPHQL_ENDPOINT) && response.url().includes(checkedVariable), 
+        (response) => {
+            const responseUrl = response.url();
+            return responseUrl.startsWith(GRAPHQL_ENDPOINT) 
+                && responseUrl.includes(checkedVariable) 
+                && responseUrl.includes('%22first%22')
+        },
         { timeout: 20000 }
     );
 
@@ -139,8 +144,11 @@ const loadMoreItems = async (pageData, page, retry = 0) => {
         scrolled = await Promise.all([
             page.evaluate(() => scrollBy(0, 9999999)),
             page.waitForRequest(
-                request => {
-                    return request.url().startsWith(GRAPHQL_ENDPOINT) && request.url().includes(checkedVariable)
+                (request) => {
+                    const requestUrl = request.url();
+                    return requestUrl.startsWith(GRAPHQL_ENDPOINT) 
+                        && requestUrl.includes(checkedVariable) 
+                        && requestUrl.includes('%22first%22')
                 }, 
                 {
                     timeout: 1000,
@@ -161,28 +169,24 @@ const loadMoreItems = async (pageData, page, retry = 0) => {
         }
     }
 
-    if (data) {
-        await page.waitFor(1000);
-        return data;
-    }
-
-    if (retry < 10 && (scrolled[1] || retry < 5)) {
+    if (!data && retry < 10 && (scrolled[1] || retry < 5)) {
         let retryDelay = retry ? ++retry * retry * 1000 : ++retry * 1000;
         log(pageData, `Retry scroll after ${retryDelay / 1000} seconds`);
         await page.waitFor(retryDelay);
         return await loadMoreItems(pageData, page, retry);
     }
 
-    return null;
+    await page.waitFor(500);
+    return data;
 };
 
 /**
  * Scrolls page and loads data until the limit is reached or the page has no more posts
- * @param {*} pageData 
- * @param {*} page 
- * @param {*} request 
- * @param {*} posts 
- * @param {*} length 
+ * @param {Object} pageData 
+ * @param {Object} page 
+ * @param {Object} request 
+ * @param {Object} posts 
+ * @param {Number} length 
  */
 const finiteScroll = async (pageData, page, request, posts, length = 0) => {
     const data = await loadMoreItems(pageData, page);
