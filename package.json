@@ -1,11 +1,10 @@
 {
 	"name": "instagram-posts",
 	"version": "1.0.0",
-	"description": "Crawl a number of web pages using headless Chrome and Puppeteer",
+	"description": "Crawls through instagram pages and stores posts",
 	"main": "main.js",
 	"dependencies": {
-		"apify": "^0.13.3",
-		"request-promise-native": "^1.0.7"
+		"apify": "^0.13.7"
 	},
 	"devDependencies": {
 		"eslint": "^5.16.0"
@@ -16,9 +15,9 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": ""
+		"url": "https://github.com/gippy/instagram-posts-scraper.git"
 	},
-	"author": "",
+	"author": "Jaroslav Hejlek",
 	"license": "ISC",
-	"homepage": ""
+	"homepage": "https://github.com/gippy/instagram-posts-scraper"
 }

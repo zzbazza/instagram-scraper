@@ -13,8 +13,18 @@ async function main() {
     const input = await Apify.getValue('INPUT');
     const { proxy, urls } = input;
 
-    if (!proxy) throw errors.proxyIsRequired();
-    if (!urls || !urls.length) throw errors.urlsAreRequired();
+    try {
+        if (!proxy) throw errors.proxyIsRequired();
+        if (!urls || !urls.length) throw errors.urlsAreRequired();
+    } catch (error) {
+        console.log('--  --  --  --  --');
+        console.log(' ');
+        Apify.utils.log.error(`Run failed because the provided input is incorrect:`);
+        Apify.utils.log.error(error.message);
+        console.log(' ');
+        console.log('--  --  --  --  --');
+        process.exit(1);
+    }
 
     const requestListSources = urls.map(({ key, value }) => ({
         url: key,
@@ -98,16 +108,15 @@ async function main() {
                 ...itemSpec,
                 shortcode: item.node.shortcode,
                 postLocationId: item.node.location && item.node.location.id || null,
-                postLocationName: item.node.location && item.node.location.name || null,
                 postOwnerId: item.node.owner && item.node.owner.id || null,
-                postOwnerUsername: item.node.owner && item.node.owner.username || null,
             },
-            pageName: itemSpec.name,
             url: 'https://www.instagram.com/p/' + item.node.shortcode,
             likesCount: item.node.edge_media_preview_like.count,
             imageUrl: item.node.display_url,
             firstComment: item.node.edge_media_to_caption.edges[0] && item.node.edge_media_to_caption.edges[0].node.text,
-            timestamp: new Date(parseInt(item.node.taken_at_timestamp) * 1000)
+            timestamp: new Date(parseInt(item.node.taken_at_timestamp) * 1000),
+            locationName: item.node.location && item.node.location.name || null,
+            ownerUsername: item.node.owner && item.node.owner.username || null,
         })).slice(0, request.userData.limit);
 
         await Apify.pushData(output);
