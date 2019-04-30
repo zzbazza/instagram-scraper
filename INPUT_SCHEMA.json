@@ -10,7 +10,7 @@
             "description": "From which pages should posts be loaded. Provide complete url to the profile, hashtag or place.",
             "editor": "stringList",
             "placeholderValue": "URL",
-            "patternValue": "https:\\/\\/www\\.instagram\\.com\\/\\.+",
+            "patternValue": "https:\\/\\/www\\.instagram\\.com\\/.+",
             "uniqueItems": true,
             "minItems": 1,
             "prefill": ["https://www.instagram.com/explore/tags/nodejs/"]
