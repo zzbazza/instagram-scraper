@@ -13,7 +13,7 @@
             "patternValue": "https:\\/\\/www\\.instagram\\.com\\/.+",
             "uniqueItems": true,
             "minItems": 1,
-            "prefill": ["https://www.instagram.com/explore/tags/nodejs/"]
+            "prefill": ["https://www.instagram.com/explore/tags/nature/"]
         },
         "postCountLimit": {
             "title": "Max posts",
