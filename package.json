@@ -1,6 +1,6 @@
 {
 	"name": "instagram-posts",
-	"version": "1.0.0",
+	"version": "0.0.1",
 	"description": "Crawls through instagram pages and stores posts",
 	"main": "main.js",
 	"dependencies": {
