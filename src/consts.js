@@ -4,6 +4,5 @@ module.exports = {
         PROFILE: 'user',
         HASHTAG: 'hashtag',
     },
-    GRAPHQL_ENDPOINT: 'https://www.instagram.com/graphql/query/?query_hash=',
-    REQUEST_TIMEOUT: 5 * 1000,
+    GRAPHQL_ENDPOINT: 'https://www.instagram.com/graphql/query/?query_hash='
 };

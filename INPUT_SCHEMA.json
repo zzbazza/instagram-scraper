@@ -1,0 +1,31 @@
+{
+    "title": "Input schema for Instagram posts scraper",
+    "description": "This scraper takes the provided URLs and attempts to scrape instagram posts from each of them. It's able to scrape posts from user profiles, hashtags and places.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "urls": {
+            "title": "URLs",
+            "type": "array",
+            "description": "From which pages should posts be loaded and how many posts to scrape",
+            "editor": "keyValue",
+            "placeholderKey": "URL",
+            "placeholderValue": "Max posts",
+            "patternKey": "https:\\/\\/www\\.instagram\\.com\\/\\.+",
+            "patternValue": "\\d+",
+            "uniqueItems": true,
+            "minItems": 1,
+            "prefill": [
+                { "key": "https://www.instagram.com/explore/tags/nodejs/", "value": 100 }
+            ]
+        },
+        "proxy": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "<strong>Proxy is required to run this actor!</strong> Either use Apify proxy, or provide your own proxy servers.",
+            "prefill": { "useApifyProxy": true, "apifyProxyGroups": [] },
+            "editor": "proxy"
+        }
+    },
+    "required": ["urls", "proxy"]
+}

@@ -1,19 +1,27 @@
 const Apify = require('apify');
 const helpers = require('./helpers');
+const errors = require('./errors');
+const consts = require('./consts');
 
-const { getItemSpec, getPostsFromEntryData, wait, finiteScroll, log } = helpers;
+const { getItemSpec, getPostsFromEntryData, getPostsFromGraphQL, getCheckedVariable, finiteScroll, log } = helpers;
+const { GRAPHQL_ENDPOINT } = consts;
 
 const initData = [];
 const posts = {};
 
 async function main() {
     const input = await Apify.getValue('INPUT');
-    const limit = input.itemLimit || 200;
+    const { proxy, urls } = input;
 
-    if (!Array.isArray(input.startUrls))
-        throw new Error('Invalid input. Correct input format: {"itemLimit": String(optional), "startUrls": Array}.');
+    if (!proxy) throw errors.proxyIsRequired();
+    if (!urls || !urls.length) throw errors.urlsAreRequired();
 
-    const requestList = await Apify.openRequestList('_instagram', input.startUrls);
+    const requestListSources = urls.map(({ key, value }) => ({
+        url: key,
+        userData: { limit: value },
+    }));
+
+    const requestList = await Apify.openRequestList('request-list', requestListSources);
 
     const gotoFunction = async ({request, page}) => {
         const resources = [
@@ -34,6 +42,31 @@ async function main() {
             if (resources.includes(request.resourceType())) return request.abort();
             request.continue();
         });
+        page.on('response', async (response) => {
+
+            const responseUrl = response.url();
+
+            // Skip non graphql responses
+            if (!responseUrl.startsWith(GRAPHQL_ENDPOINT)) return;
+
+            // Wait for the page to parse it's data
+            while (!page.itemSpec) await page.waitFor(100);
+
+            // Get variable we look for in the query string of request
+            const checkedVariable = getCheckedVariable(page.itemSpec.pageType);
+
+            // Skip queries for other stuff then posts
+            if (!responseUrl.includes(checkedVariable)) return;
+
+            const data = await response.json();
+            const timeline = getPostsFromGraphQL(page.itemSpec.pageType, data['data']);
+
+            posts[page.itemSpec.id] = posts[page.itemSpec.id].concat(timeline.posts);
+
+            if (!initData[page.itemSpec.id]) initData[page.itemSpec.id] = timeline;
+
+            log(page.itemSpec, `${timeline.posts.length} items added, ${posts[page.itemSpec.id].length} items total`);
+        });
 
         return page.goto(request.url);
     };
@@ -43,14 +76,20 @@ async function main() {
         const itemSpec = getItemSpec(entryData);
         page.itemSpec = itemSpec;
 
-        posts[itemSpec.id] = getPostsFromEntryData(itemSpec.pageType, entryData);
-        initData[itemSpec.id] = posts[itemSpec.id];
+        const timeline = getPostsFromEntryData(itemSpec.pageType, entryData);
+        initData[itemSpec.id] = timeline;
 
-        log(itemSpec, `${posts[itemSpec.id].length} items added, ${posts[itemSpec.id].length} items total`);
+        if (initData[itemSpec.id]) {
+            posts[itemSpec.id] = timeline.posts;
+            log(page.itemSpec, `${timeline.posts.length} items added, ${posts[page.itemSpec.id].length} items total`);
+        } else {
+            log(itemSpec, 'Waiting for initial data to load');
+            while (!initData[itemSpec.id]) await page.waitFor(100);
+        }
 
-        if (posts[itemSpec.id].length < limit) {
-            await wait(1000);
-            await finiteScroll(itemSpec, page, limit, request, posts);
+        if (initData[itemSpec.id].hasNextPage && posts[itemSpec.id].length < request.userData.limit) {
+            await page.waitFor(1000);
+            await finiteScroll(itemSpec, page, request, posts);
         }
 
         const output = posts[itemSpec.id].map((item, index) => ({
@@ -69,7 +108,7 @@ async function main() {
             imageUrl: item.node.display_url,
             firstComment: item.node.edge_media_to_caption.edges[0] && item.node.edge_media_to_caption.edges[0].node.text,
             timestamp: new Date(parseInt(item.node.taken_at_timestamp) * 1000)
-        })).slice(0, limit);
+        })).slice(0, request.userData.limit);
 
         await Apify.pushData(output);
         log(itemSpec, `${output.length} items saved, task finished`);
@@ -83,8 +122,7 @@ async function main() {
             maxOpenPagesPerInstance: 1
         },
         launchPuppeteerOptions: {
-            useApifyProxy: true,
-            devTools: true,
+            ...proxy,
         },
         handlePageTimeoutSecs: 12 * 60 * 60,
         handlePageFunction,
