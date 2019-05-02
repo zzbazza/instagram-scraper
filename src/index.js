@@ -1,6 +1,7 @@
 const Apify = require('apify');
 const { scrapePosts, handlePostsGraphQLResponse } = require('./posts');
 const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments');
+const { scrapeDetails }  = require('./details');
 const { getItemSpec } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORTED_RESOUCE_TYPES, SCRAPE_TYPES } = require('./consts');
 const errors = require('./errors');
@@ -64,7 +65,8 @@ async function main() {
         switch (type) {
             case SCRAPE_TYPES.POSTS: return scrapePosts(page, request, itemSpec, entryData);
             case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec, entryData);
-        }
+            case SCRAPE_TYPES.DETAILS: return scrapeDetails(request, itemSpec, entryData);
+        };
     }
 
     const crawler = new Apify.PuppeteerCrawler({

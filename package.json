@@ -4,7 +4,8 @@
 	"description": "Crawls through instagram pages and stores posts",
 	"main": "main.js",
 	"dependencies": {
-		"apify": "^0.13.7"
+		"apify": "^0.13.7",
+		"request-promise-native": "^1.0.7"
 	},
 	"devDependencies": {
 		"eslint": "^5.16.0"
