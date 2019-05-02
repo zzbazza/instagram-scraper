@@ -1,6 +1,6 @@
 {
     "title": "Input schema for Instagram scraper",
-    "description": "This scraper takes the provided URLs and attempts to scrape instagram posts, comments or detailed information from each of URL. It's able to scrape posts from user profiles, hashtags and places. Comments from posts and detailed information about all of these.",
+    "description": "This scraper takes the provided URLs and attempts to scrape instagram posts, comments or detailed information from each of URL. It's able to scrape posts from user profiles, hashtags and places. Comments from posts and detailed information about all of these. <br/> <strong>Important: Proxy is required to use this solution</strong>",
     "type": "object",
     "schemaVersion": 1,
     "properties": {

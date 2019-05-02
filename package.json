@@ -1,7 +1,7 @@
 {
-	"name": "instagram-posts",
+	"name": "instagram-scraper",
 	"version": "0.0.1",
-	"description": "Crawls through instagram pages and stores posts",
+	"description": "Crawls through instagram pages and stores posts, comments and details",
 	"main": "main.js",
 	"dependencies": {
 		"apify": "^0.13.7",
@@ -16,9 +16,9 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/gippy/instagram-posts-scraper.git"
+		"url": "https://github.com/gippy/instagram-scraper.git"
 	},
 	"author": "Jaroslav Hejlek",
 	"license": "ISC",
-	"homepage": "https://github.com/gippy/instagram-posts-scraper"
+	"homepage": "https://github.com/gippy/instagram-scraper"
 }
