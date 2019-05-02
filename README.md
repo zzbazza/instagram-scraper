@@ -40,7 +40,7 @@ This solution requires use of **Proxy servers**, either your own proxy servers o
     "urls": [ "https://www.instagram.com/teslamotors/" ],
     "type": "posts",
     "limit": 100,
-    "proxy": { "useApifyProxy": true, "apifyProxyGrouups": [] }
+    "proxy": { "useApifyProxy": true, "apifyProxyGroups": [] }
 }
 
 ```

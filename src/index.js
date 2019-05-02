@@ -82,6 +82,8 @@ async function main() {
         };
     }
 
+    if (proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
+
     const crawler = new Apify.PuppeteerCrawler({
         requestList,
         gotoFunction,
