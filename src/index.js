@@ -1,21 +1,19 @@
 const Apify = require('apify');
-const helpers = require('./helpers');
+const { scrapePosts, handlePostsGraphQLResponse } = require('./posts');
+const { scrapeComments, handleCommentsGraphQLResponse }  = require('./posts');
+const { getItemSpec } = require('./helpers');
+const { GRAPHQL_ENDPOINT, ABORTED_RESOUCE_TYPES, SCRAPE_TYPES } = require('./consts');
 const errors = require('./errors');
-const consts = require('./consts');
-
-const { getItemSpec, getPostsFromEntryData, getPostsFromGraphQL, getCheckedVariable, finiteScroll, log } = helpers;
-const { GRAPHQL_ENDPOINT } = consts;
-
-const initData = [];
-const posts = {};
 
 async function main() {
     const input = await Apify.getValue('INPUT');
-    const { proxy, urls, postCountLimit = 200 } = input;
+    const { proxy, urls, type, limit = 200 } = input;
 
     try {
         if (!proxy) throw errors.proxyIsRequired();
         if (!urls || !urls.length) throw errors.urlsAreRequired();
+        if (!type) throw errors.typeIsRequired();
+        if (!Object.values(SCRAPE_TYPES).includes(type)) throw errors.unsupportedType(type);
     } catch (error) {
         console.log('--  --  --  --  --');
         console.log(' ');
@@ -28,32 +26,19 @@ async function main() {
 
     const requestListSources = urls.map((url) => ({
         url,
-        userData: { limit: postCountLimit },
+        userData: { limit },
     }));
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
 
     const gotoFunction = async ({request, page}) => {
-        const resources = [
-            'stylesheet',
-            'image',
-            'media',
-            'font',
-            'texttrack',
-            'fetch',
-            'eventsource',
-            'websocket',
-            'manifest',
-            'other'
-        ];
-
         await page.setRequestInterception(true);
         page.on('request', (request) => {
-            if (resources.includes(request.resourceType())) return request.abort();
+            if (ABORTED_RESOUCE_TYPES.includes(request.resourceType())) return request.abort();
             request.continue();
         });
-        page.on('response', async (response) => {
 
+        page.on('response', async (response) => {
             const responseUrl = response.url();
 
             // Skip non graphql responses
@@ -62,23 +47,10 @@ async function main() {
             // Wait for the page to parse it's data
             while (!page.itemSpec) await page.waitFor(100);
 
-            // Get variable we look for in the query string of request
-            const checkedVariable = getCheckedVariable(page.itemSpec.pageType);
-
-            // Skip queries for other stuff then posts
-            if (!responseUrl.includes(checkedVariable) || !responseUrl.includes('%22first%22')) return;
-
-            const data = await response.json();
-            const timeline = getPostsFromGraphQL(page.itemSpec.pageType, data['data']);
-            
-            posts[page.itemSpec.id] = posts[page.itemSpec.id].concat(timeline.posts);
-
-            if (!initData[page.itemSpec.id]) initData[page.itemSpec.id] = timeline;
-            else if (initData[page.itemSpec.id].hasNextPage && !timeline.hasNextPage) {
-                initData[page.itemSpec.id].hasNextPage = false;
+            switch (type) {
+                case SCRAPE_TYPES.POSTS: return handlePostsGraphQLResponse(page, response);
+                case SCRAPE_TYPES.COMMENTS: return handleCommentsGraphQLResponse(page, response);
             }
-
-            log(page.itemSpec, `${timeline.posts.length} items added, ${posts[page.itemSpec.id].length} items total`);
         });
 
         return page.goto(request.url);
@@ -89,43 +61,10 @@ async function main() {
         const itemSpec = getItemSpec(entryData);
         page.itemSpec = itemSpec;
 
-        const timeline = getPostsFromEntryData(itemSpec.pageType, entryData);
-        initData[itemSpec.id] = timeline;
-
-        if (initData[itemSpec.id]) {
-            posts[itemSpec.id] = timeline.posts;
-            log(page.itemSpec, `${timeline.posts.length} items added, ${posts[page.itemSpec.id].length} items total`);
-        } else {
-            log(itemSpec, 'Waiting for initial data to load');
-            while (!initData[itemSpec.id]) await page.waitFor(100);
+        switch (type) {
+            case SCRAPE_TYPES.POSTS: return scrapePosts(page, request, itemSpec);
+            case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec);
         }
-
-        await page.waitFor(500);
-
-        if (initData[itemSpec.id].hasNextPage && posts[itemSpec.id].length < request.userData.limit) {
-            await page.waitFor(1000);
-            await finiteScroll(itemSpec, page, request, posts);
-        }
-
-        const output = posts[itemSpec.id].map((item, index) => ({
-            '#debug': {
-                index,
-                ...itemSpec,
-                shortcode: item.node.shortcode,
-                postLocationId: item.node.location && item.node.location.id || null,
-                postOwnerId: item.node.owner && item.node.owner.id || null,
-            },
-            url: 'https://www.instagram.com/p/' + item.node.shortcode,
-            likesCount: item.node.edge_media_preview_like.count,
-            imageUrl: item.node.display_url,
-            firstComment: item.node.edge_media_to_caption.edges[0] && item.node.edge_media_to_caption.edges[0].node.text,
-            timestamp: new Date(parseInt(item.node.taken_at_timestamp) * 1000),
-            locationName: item.node.location && item.node.location.name || null,
-            ownerUsername: item.node.owner && item.node.owner.username || null,
-        })).slice(0, request.userData.limit);
-
-        await Apify.pushData(output);
-        log(itemSpec, `${output.length} items saved, task finished`);
     }
 
     const crawler = new Apify.PuppeteerCrawler({
