@@ -3,8 +3,7 @@
 ## Instagram scraper
 
 Since instagram has removed the option to load public data through API, this actor should help replace this functionality. It allows you to scrape
-posts from a users profile page, hashtage page or place. It also allows scraping of instagram followers and following. When a link to an Instagram post is provided
-it can scrape Instagram comments.
+posts from a users profile page, hashtage page or place. When a link to an Instagram post is provided it can scrape Instagram comments.
 
 *The only limitation of this solution is that it can only retrieve public data that are accessible through instagram webpage. Private profiles and hashtags with limited
 post counts will not output all data.*
@@ -20,7 +19,7 @@ Input of this actor should be JSON containing list of pages on instagram which s
 | Field | Type | Description |
 | ----- | ---- | ----------- |
 | urls | Array | List of instagram URLs |
-| type | String | What to scrape from each page, default is "posts" other options are "comments", "followers" and "following"  |
+| type | String | What to scrape from each page, default is "posts" the other option is "comments" |
 | limit | Integer | How many items should be loaded from each URL (limit is per page)  |
 | proxy | Object | Proxy configuration |
 
@@ -49,8 +48,10 @@ what is wrong.
 
 ## Dataset items
 
-During the run, the actor is storing results into dataset, each item is a separate item in the dataset and it's
-structure looks like this:
+During the run, the actor is storing results into dataset, each item is a separate item in the dataset.
+
+### Instagram posts
+Structure of each item in Instagram Posts looks like this:
 
 ```json
 {
@@ -72,5 +73,29 @@ structure looks like this:
   "timestamp": "2019-04-25T14:57:01.000Z",
   "locationName": "Tesla Gigafactory 1",
   "ownerUsername": "teslamotors"
+}
+```
+
+### Instagram comments
+Structure of each item in Instagram Comments looks like this:
+
+```json
+{
+  "#debug": {
+    "index": 13,
+    "pageType": "post",
+    "id": "Bw7jACTn3tC",
+    "postCommentsDisabled": false,
+    "postIsVideo": true,
+    "postVideoViewCount": 418505,
+    "postVideoDurationSecs": 13.05
+  },
+  "id": "17847980458427200",
+  "text": "#thankyouavengers",
+  "timestamp": null,
+  "ownerId": "3821638094",
+  "ownerIsVerified": false,
+  "ownerUsername": "exelya_alvyolita",
+  "ownerProfilePicUrl": "https://scontent-ort2-1.cdninstagram.com/vp/b12a3649da329b32a3d7f0d2127d5033/5D6141DD/t51.2885-19/s150x150/54446808_273968013485672_6984748001717649408_n.jpg?_nc_ht=scontent-ort2-1.cdninstagram.com"
 }
 ```

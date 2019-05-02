@@ -1,6 +1,6 @@
 const Apify = require('apify');
 const { scrapePosts, handlePostsGraphQLResponse } = require('./posts');
-const { scrapeComments, handleCommentsGraphQLResponse }  = require('./posts');
+const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments');
 const { getItemSpec } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORTED_RESOUCE_TYPES, SCRAPE_TYPES } = require('./consts');
 const errors = require('./errors');
@@ -62,8 +62,8 @@ async function main() {
         page.itemSpec = itemSpec;
 
         switch (type) {
-            case SCRAPE_TYPES.POSTS: return scrapePosts(page, request, itemSpec);
-            case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec);
+            case SCRAPE_TYPES.POSTS: return scrapePosts(page, request, itemSpec, entryData);
+            case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec, entryData);
         }
     }
 

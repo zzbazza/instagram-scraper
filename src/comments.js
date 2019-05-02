@@ -1,5 +1,6 @@
+const Apify = require('apify');
 const { getCheckedVariable, log } = require('./helpers');
-const { GRAPHQL_ENDPOINT } = require('./consts');
+const { PAGE_TYPES, GRAPHQL_ENDPOINT } = require('./consts');
 const errors = require('./errors');
 
 const initData = {};
@@ -8,30 +9,13 @@ const comments = {};
 /**
  * Takes type of page and data loaded through GraphQL and outputs
  * correct list of comments.
- * @param {String} pageType Type of page we are scraping comments from
  * @param {Object} data GraphQL data
  */
-const getCommentsFromGraphQL = (pageType, data) => {
-    if (pageType !== PAGE_TYPES.POST) throw errors.notPostPage();
-
-    const timeline = data.post.edge_media_to_comment;
-    const comments = timeline ? timeline.edges : [];
+const getCommentsFromGraphQL = (data) => {
+    const timeline = data.shortcode_media.edge_media_to_comment;
+    const comments = timeline ? timeline.edges.reverse() : [];
     const hasNextPage = timeline ? timeline.page_info.has_next_page : false;
     return { comments, hasNextPage };
-}
-
-/**
- * Takes type of page and it's initial loaded data and outputs
- * correct list of comments.
- * @param {String} pageType Type of page we are scraping comments from
- * @param {Object} data GraphQL data
- */
-const getCommentsFromEntryData = (pageType, data) => {
-    if (pageType !== PAGE_TYPES.POST) throw errors.notPostPage();
-
-    const pageData = data.PostPage;
-
-    return getCommentsFromGraphQL(pageType, pageData[0].graphql);
 }
 
 const loadMore = async (pageData, page, retry = 0) => {
@@ -47,10 +31,10 @@ const loadMore = async (pageData, page, retry = 0) => {
         { timeout: 20000 }
     );
 
-    let scrolled;
+    let clicked;
     for (let i = 0; i < 10; i++) {
-        scrolled = await Promise.all([
-            page.evaluate(() => scrollBy(0, 9999999)),
+        clicked = await Promise.all([
+            page.click('article ul li button'),
             page.waitForRequest(
                 (request) => {
                     const requestUrl = request.url();
@@ -63,11 +47,11 @@ const loadMore = async (pageData, page, retry = 0) => {
                 }
             ).catch(() => null),
         ]);
-        if (scrolled[1]) break;
+        if (clicked[1]) break;
     }
 
     let data = null;
-    if (scrolled[1]){
+    if (clicked[1]){
         try {
             const response = await responsePromise;
             const json = await response.json();
@@ -98,7 +82,7 @@ const loadMore = async (pageData, page, retry = 0) => {
 const finiteScroll = async (pageData, page, request, length = 0) => {
     const data = await loadMore(pageData, page);
     if (data) {
-        const timeline = getCommentsFromGraphQL(pageData.pageType, data);
+        const timeline = getCommentsFromGraphQL(data);
         if (!timeline.hasNextPage) return;
     }
 
@@ -107,8 +91,11 @@ const finiteScroll = async (pageData, page, request, length = 0) => {
     }
 };
 
-const scrapeComments = async (page, request, itemSpec) => {
-    const timeline = getCommentsFromEntryData(itemSpec.pageType, entryData);
+const scrapeComments = async (page, request, itemSpec, entryData) => {
+    // Check that current page is of a type which has comments
+    if (itemSpec.pageType !== PAGE_TYPES.POST) throw errors.notPostPage();
+
+    const timeline = getCommentsFromGraphQL(entryData.PostPage[0].graphql);
     initData[itemSpec.id] = timeline;
 
     if (initData[itemSpec.id]) {
@@ -130,17 +117,14 @@ const scrapeComments = async (page, request, itemSpec) => {
         '#debug': {
             index,
             ...itemSpec,
-            shortcode: item.node.shortcode,
-            postLocationId: item.node.location && item.node.location.id || null,
-            postOwnerId: item.node.owner && item.node.owner.id || null,
         },
-        url: 'https://www.instagram.com/p/' + item.node.shortcode,
-        likesCount: item.node.edge_media_preview_like.count,
-        imageUrl: item.node.display_url,
-        firstComment: item.node.edge_media_to_caption.edges[0] && item.node.edge_media_to_caption.edges[0].node.text,
-        timestamp: new Date(parseInt(item.node.taken_at_timestamp) * 1000),
-        locationName: item.node.location && item.node.location.name || null,
-        ownerUsername: item.node.owner && item.node.owner.username || null,
+        id: item.node.id,
+        text: item.node.text,
+        timestamp: new Date(parseInt(item.node.createdAt) * 1000),
+        ownerId: item.node.owner ? item.node.owner.id : null, 
+        ownerIsVerified: item.node.owner ? item.node.owner.is_verified : null, 
+        ownerUsername: item.node.owner ? item.node.owner.username : null, 
+        ownerProfilePicUrl: item.node.owner ? item.node.owner.profile_pic_url : null, 
     })).slice(0, request.userData.limit);
 
     await Apify.pushData(output);
@@ -157,7 +141,7 @@ async function handleCommentsGraphQLResponse(page, response) {
     if (!responseUrl.includes(checkedVariable) || !responseUrl.includes('%22first%22')) return;
 
     const data = await response.json();
-    const timeline = getCommentsFromGraphQL(page.itemSpec.pageType, data['data']);
+    const timeline = getCommentsFromGraphQL(data['data']);
     
     comments[page.itemSpec.id] = comments[page.itemSpec.id].concat(timeline.comments);
 
@@ -166,7 +150,7 @@ async function handleCommentsGraphQLResponse(page, response) {
         initData[page.itemSpec.id].hasNextPage = false;
     }
 
-    log(page.itemSpec, `${timeline.comments.length} items added, ${posts[page.itemSpec.id].length} items total`);
+    log(page.itemSpec, `${timeline.comments.length} items added, ${comments[page.itemSpec.id].length} items total`);
 }
 
 

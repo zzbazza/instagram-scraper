@@ -1,5 +1,6 @@
+const Apify = require('apify');
 const { getCheckedVariable, log } = require('./helpers');
-const { GRAPHQL_ENDPOINT } = require('./consts');
+const { PAGE_TYPES, GRAPHQL_ENDPOINT } = require('./consts');
 
 const initData = {};
 const posts = {};
@@ -125,7 +126,7 @@ const finiteScroll = async (pageData, page, request, length = 0) => {
     }
 };
 
-const scrapePosts = async (page, request, itemSpec) => {
+const scrapePosts = async (page, request, itemSpec, entryData) => {
     const timeline = getPostsFromEntryData(itemSpec.pageType, entryData);
     initData[itemSpec.id] = timeline;
 
