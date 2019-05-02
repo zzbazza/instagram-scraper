@@ -1,12 +1,17 @@
-# Actor - Instagram Posts
+# Actor - Instagram scraper
 
-## Instagram posts scraper
+## Instagram scraper
 
-Since instagram has removed the option to load public posts through API, this actor should help replace this functionality.
+Since instagram has removed the option to load public data through API, this actor should help replace this functionality. It allows you to scrape
+posts from a users profile page, hashtage page or place. It also allows scraping of instagram followers and following. When a link to an Instagram post is provided
+it can scrape Instagram comments.
+
+*The only limitation of this solution is that it can only retrieve public data that are accessible through instagram webpage. Private profiles and hashtags with limited
+post counts will not output all data.*
 
 ## Open source solution for instagram API
-You can manage the posts results in any languague (Python, PHP, Node JS/NPM). See the FAQ or <a href="https://www.apify.com/docs/api" target="blank">our API reference</a> to learn more about getting results from this Instagram Posts Actor.
-The code of this Instagram posts actor is also open source, so you can create your own solution if you need.
+You can manage the results in any languague (Python, PHP, Node JS/NPM). See the FAQ or <a href="https://www.apify.com/docs/api" target="blank">our API reference</a> to learn more about getting results from this Instagram Actor.
+The code of this Instagram actor is also open source, so you can create your own solution if you need.
 
 ## INPUT
 
@@ -15,17 +20,19 @@ Input of this actor should be JSON containing list of pages on instagram which s
 | Field | Type | Description |
 | ----- | ---- | ----------- |
 | urls | Array | List of instagram URLs |
-| postCountLimit | Integer | How many posts should be loaded from each URL (limit is per page)  |
+| type | String | What to scrape from each page, default is "posts" other options are "comments", "followers" and "following"  |
+| limit | Integer | How many items should be loaded from each URL (limit is per page)  |
 | proxy | Object | Proxy configuration |
 
-### Important considerations
-**Proxy** - This solution requires use of **Proxy servers**, either your own proxy servers or you can use <a href="https://www.apify.com/docs/proxy">Apify Proxy</a>.
+### PROXY
+This solution requires use of **Proxy servers**, either your own proxy servers or you can use <a href="https://www.apify.com/docs/proxy">Apify Proxy</a>.
 
 ### Input example
 ```json
 {
     "urls": [ "https://www.instagram.com/teslamotors/" ],
-    "postCountLimit": 100,
+    "type": "posts",
+    "limit": 100,
     "proxy": { "useApifyProxy": true, "apifyProxyGrouups": [] }
 }
 
@@ -35,14 +42,14 @@ Input of this actor should be JSON containing list of pages on instagram which s
 
 During the run, the actor will output messages letting the you know what is going on. Each message always contains a short label specifying which page
 from the provided list is currently specified.
-When posts are loaded from the page, you should see a message about this event with a loaded post count and total post count for each page.
+When items are loaded from the page, you should see a message about this event with a loaded item count and total item count for each page.
 
 If you provide incorrect input to the actor, it will immediately stop with Failure state and output an explanation of
 what is wrong.
 
 ## Dataset items
 
-During the run, the actor is storing results into dataset, each post is a separate item in the dataset and it's
+During the run, the actor is storing results into dataset, each item is a separate item in the dataset and it's
 structure looks like this:
 
 ```json

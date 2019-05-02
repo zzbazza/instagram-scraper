@@ -15,10 +15,19 @@
             "minItems": 1,
             "prefill": ["https://www.instagram.com/explore/tags/nature/"]
         },
-        "postCountLimit": {
-            "title": "Max posts",
+        "type": {
+            "title": "What to scrape",
+            "type": "string",
+            "description": "What to scrape from each page",
+            "editor": "select",
+            "enum": ["posts", "followers", "following", "comments"],
+            "enumTitles": ["Posts", "Followers", "Following", "Comments"],
+            "default": "posts"
+        },
+        "limit": {
+            "title": "Max items",
             "type": "integer",
-            "description": "How many posts to scrape from each page",
+            "description": "How many posts/followers/comments to scrape from each page",
             "editor": "number",
             "unit": "per page",
             "default": 200
