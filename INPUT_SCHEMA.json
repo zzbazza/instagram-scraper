@@ -17,7 +17,7 @@
             "editor": "select",
             "enum": ["user", "hashtag", "place"],
             "enumTitles": ["Search users", "Search hashtags", "Search places"],
-            "default": "posts"
+            "default": "hashtag"
         },
         "searchLimit": {
             "title": "Search results limit",

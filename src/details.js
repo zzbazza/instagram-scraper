@@ -14,7 +14,7 @@ const formatIGTVVideo = (edge) => {
         dimensionsHeight: node.dimensions.height,
         dimensionsWidth: node.dimensions.width,
         displayUrl: node.display_url,
-        likesCount: node.liked_by ? node.liked_by.count : null,
+        likesCount: node.edge_liked_by ? node.edge_liked_by.count : null,
         videoDuration: node.video_duration || 0,
         videoViewCount: node.video_view_count,
 
@@ -34,7 +34,7 @@ const formatSinglePost = (node) => ({
     dimensionsHeight: node.dimensions.height,
     dimensionsWidth: node.dimensions.width,
     displayUrl: node.display_url,
-    likesCount: node.liked_by ? node.liked_by.count : null,
+    likesCount: node.edge_liked_by ? node.edge_liked_by.count : null,
     videoDuration: node.video_duration,
     videoViewCount: node.video_view_count,
     timestamp: node.taken_at_timestamp ? new Date(parseInt(node.taken_at_timestamp) * 1000) : null,
