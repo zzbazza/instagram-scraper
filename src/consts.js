@@ -10,6 +10,11 @@ module.exports = {
         COMMENTS: 'comments',
         DETAILS: 'details',
     },
+    SEARCH_TYPES: {
+        PLACE: 'place',
+        USER: 'user',
+        HASHTAG: 'hashtag',
+    },
     GRAPHQL_ENDPOINT: 'https://www.instagram.com/graphql/query/?query_hash=',
     ABORTED_RESOUCE_TYPES: [
         'stylesheet',

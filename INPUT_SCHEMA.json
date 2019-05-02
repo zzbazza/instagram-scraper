@@ -4,6 +4,30 @@
     "type": "object",
     "schemaVersion": 1,
     "properties": {
+        "query": {
+            "title": "Query",
+            "type": "string",
+            "description": "What to query instagram for",
+            "editor": "textfield"
+        },
+        "searchType": {
+            "title": "Query type",
+            "type": "string",
+            "description": "What to search",
+            "editor": "select",
+            "enum": ["user", "hashtag", "place"],
+            "enumTitles": ["Search users", "Search hashtags", "Search places"],
+            "default": "posts"
+        },
+        "searchLimit": {
+            "title": "Search results limit",
+            "type": "integer",
+            "description": "How many results from search should be processed",
+            "editor": "number",
+            "default": 10,
+            "minimum": 1,
+            "maximum": 100
+        },
         "urls": {
             "title": "URLs",
             "type": "array",
@@ -12,7 +36,6 @@
             "placeholderValue": "URL",
             "patternValue": "https:\\/\\/www\\.instagram\\.com\\/.+",
             "uniqueItems": true,
-            "minItems": 1,
             "prefill": ["https://www.instagram.com/explore/tags/nature/"]
         },
         "type": {

@@ -2,17 +2,34 @@ const Apify = require('apify');
 const { scrapePosts, handlePostsGraphQLResponse } = require('./posts');
 const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments');
 const { scrapeDetails }  = require('./details');
+const { searchUrls } = require('./search');
 const { getItemSpec } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORTED_RESOUCE_TYPES, SCRAPE_TYPES } = require('./consts');
 const errors = require('./errors');
 
 async function main() {
     const input = await Apify.getValue('INPUT');
-    const { proxy, urls, type, limit = 200 } = input;
+    const { proxy, type, limit = 200 } = input;
+
+    Apify.utils.log.info('SEARCH!');
+
+    const foundUrls = await searchUrls(input);
+
+    console.log('foundUrls', foundUrls);
+    const urls = [
+        ...(input.urls || []), 
+        ...foundUrls,
+    ];
+
+    if (urls.length === 0) {
+        Apify.utils.log.info('No URLs to process');
+        process.exit(0);
+    }
+
+    await searchUrls(input);
 
     try {
         if (!proxy) throw errors.proxyIsRequired();
-        if (!urls || !urls.length) throw errors.urlsAreRequired();
         if (!type) throw errors.typeIsRequired();
         if (!Object.values(SCRAPE_TYPES).includes(type)) throw errors.unsupportedType(type);
     } catch (error) {
