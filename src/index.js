@@ -85,7 +85,6 @@ async function main() {
     const crawler = new Apify.PuppeteerCrawler({
         requestList,
         gotoFunction,
-        maxConcurrency: 1,
         puppeteerPoolOptions: {
             maxOpenPagesPerInstance: 1
         },
