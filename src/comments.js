@@ -18,6 +18,12 @@ const getCommentsFromGraphQL = (data) => {
     return { comments, hasNextPage };
 }
 
+/**
+ * Clicks on "Load more comments" button and waits till GraphQL response is received
+ * @param {Object} pageData Parsed page data
+ * @param {Object} page Puppeteers page object
+ * @param {Integer} retry Retry attempts counter
+ */
 const loadMore = async (pageData, page, retry = 0) => {
     await page.keyboard.press('PageUp');
     const checkedVariable = getCheckedVariable(pageData.pageType);
@@ -73,7 +79,7 @@ const loadMore = async (pageData, page, retry = 0) => {
 };
 
 /**
- * Scrolls page and loads data until the limit is reached or the page has no more comments
+ * Loads data and clicks on "Load more comments" until the limit is reached or the page has no more comments
  * @param {Object} pageData 
  * @param {Object} page 
  * @param {Object} request 
@@ -91,6 +97,13 @@ const finiteScroll = async (pageData, page, request, length = 0) => {
     }
 };
 
+/**
+ * Loads data from entry date and then loads comments untill limit is reached
+ * @param {Object} page Puppeteer Page object
+ * @param {Object} request Apify Request object
+ * @param {Object} itemSpec Parsed page data
+ * @param {Object} entryData data from window._shared_data.entry_data
+ */
 const scrapeComments = async (page, request, itemSpec, entryData) => {
     // Check that current page is of a type which has comments
     if (itemSpec.pageType !== PAGE_TYPES.POST) throw errors.notPostPage();
@@ -131,6 +144,11 @@ const scrapeComments = async (page, request, itemSpec, entryData) => {
     log(itemSpec, `${output.length} items saved, task finished`);
 }
 
+/**
+ * Takes GraphQL response, checks that it's a response with more comments and then parses the comments from it
+ * @param {Object} page Puppeteer Page object
+ * @param {Object} response Puppeteer Response object
+ */
 async function handleCommentsGraphQLResponse(page, response) {
     const responseUrl = response.url();
 

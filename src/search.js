@@ -2,10 +2,15 @@ const Apify = require('apify');
 const request = require('request-promise-native');
 const { SEARCH_TYPES } = require('./consts');
 
+// Helper functions that create direct links to search results
 const formatPlaceResult = (item) =>  `https://www.instagram.com/explore/locations/${item.place.location.pk}/${item.place.slug}/`;
 const formatUserResult = (item) =>  `https://www.instagram.com/${item.user.user.username}/`;
 const formatHashtagResult = (item) =>  `https://www.instagram.com/explore/tags/${item.tag.hashtag.name}/`;
 
+/**
+ * Attempts to query Instagram search and parse found results into direct links to instagram pages
+ * @param {Object} input Input loaded from Apify.getInput();
+ */
 const searchUrls = async (input) => {
     const { query, searchType, searchLimit = 10 } = input;
     if (!query) return [];

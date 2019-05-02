@@ -8,10 +8,8 @@ const { GRAPHQL_ENDPOINT, ABORTED_RESOUCE_TYPES, SCRAPE_TYPES } = require('./con
 const errors = require('./errors');
 
 async function main() {
-    const input = await Apify.getValue('INPUT');
+    const input = await Apify.getInput();
     const { proxy, type, limit = 200 } = input;
-
-    Apify.utils.log.info('SEARCH!');
 
     const foundUrls = await searchUrls(input);
     const urls = [

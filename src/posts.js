@@ -53,6 +53,13 @@ const getPostsFromEntryData = (pageType, data) => {
     return getPostsFromGraphQL(pageType, pageData[0].graphql);
 }
 
+/**
+ * Attempts to scroll window and waits for XHR response, when response is fired
+ * it returns back to caller, else it retries the attempt again.
+ * @param {Object} pageData Object containing parsed page data
+ * @param {Object} page Puppeteer Page object
+ * @param {Integer} retry Retry attempts counter
+ */
 const loadMore = async (pageData, page, retry = 0) => {
     await page.keyboard.press('PageUp');
     const checkedVariable = getCheckedVariable(pageData.pageType);
@@ -126,6 +133,13 @@ const finiteScroll = async (pageData, page, request, length = 0) => {
     }
 };
 
+/**
+ * Takes data from entry data and from loaded xhr requests and parses them into final output.
+ * @param {Object} page Puppeteer Page object
+ * @param {Object} request Apify Request object
+ * @param {Object} itemSpec Parsed page data
+ * @param {Object} entryData data from window._shared_data.entry_data
+ */
 const scrapePosts = async (page, request, itemSpec, entryData) => {
     const timeline = getPostsFromEntryData(itemSpec.pageType, entryData);
     initData[itemSpec.id] = timeline;
@@ -166,6 +180,12 @@ const scrapePosts = async (page, request, itemSpec, entryData) => {
     log(itemSpec, `${output.length} items saved, task finished`);
 }
 
+/**
+ * Catches GraphQL responses and if they contain post data, it stores the data
+ * to the global variable.
+ * @param {Object} page Puppeteer Page object
+ * @param {Object} response Puppeteer Response object
+ */
 async function handlePostsGraphQLResponse(page, response) {
     const responseUrl = response.url();
 

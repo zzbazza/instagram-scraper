@@ -2,6 +2,7 @@ const Apify = require('apify');
 const { log } = require('./helpers');
 const { PAGE_TYPES } = require('./consts');
 
+// Formats IGTV Video Post edge item into nicely formated output item
 const formatIGTVVideo = (edge) => {
     const { node } = edge;
     return {
@@ -21,11 +22,13 @@ const formatIGTVVideo = (edge) => {
     }
 };
 
+// Formats list of display recources into URLs
 const formatDisplayResources = (resources) => {
     if (!resources) return [];
     return resources.map((resource) => resource.src);
 };
 
+// Format Post Edge item into cleaner output
 const formatSinglePost = (node) => ({
     type: node.__typename ? node.__typename.replace('Graph', '') : (node.is_video ? 'Video' : 'Image'),
     shortCode: node.shortcode,
@@ -42,12 +45,13 @@ const formatSinglePost = (node) => ({
     ownerFullName: node.owner ? node.owner.full_name : null,
 });
 
+// Translates word to have first letter uppercased so word will become Word
 const uppercaseFirstLetter = (word) => {
     const uppercasedLetter = word.charAt(0).toUpperCase();
     const restOfTheWord = word.slice(1);
     return `${uppercasedLetter}${restOfTheWord}`;
 }
-// ": "{\"street_address\": \"\", \"zip_code\": \"\", \"city_name\": \"Prague, Czech Republic\", \"region_name\": \"\", \"country_code\": \"CZ\", \"exact_city_match\": false, \"exact_region_match\": false, \"exact_country_match\": false}",
+// Formats address in JSON into an object
 const formatJSONAddress = (jsonAddress) => {
     if (!jsonAddress) return '';
     let address;
@@ -64,6 +68,7 @@ const formatJSONAddress = (jsonAddress) => {
     return result;
 }
 
+// Formats data from window._shared_data.entry_data.ProfilePage[0].graphql.user to nicer output
 const formatProfileOutput = (request, data) => ({
     '#debug': {
         url: request.url,
@@ -92,6 +97,7 @@ const formatProfileOutput = (request, data) => ({
     latestPosts: data.edge_owner_to_timeline_media ? data.edge_owner_to_timeline_media.edges.map((edge) => edge.node).map(formatSinglePost) : [],
 });
 
+// Formats data from window._shared_data.entry_data.LocationPage[0].graphql.location to nicer output
 const formatPlaceOutput = (request, data) => ({
     '#debug': {
         url: request.url,
@@ -113,6 +119,7 @@ const formatPlaceOutput = (request, data) => ({
     latestPosts: data.edge_location_to_media ? data.edge_location_to_media.edges.map((edge) => edge.node).map(formatSinglePost) : [],
 });
 
+// Formats data from window._shared_data.entry_data.TagPage[0].graphql.hashtag to nicer output
 const formatHashtagOutput = (request, data) => ({
     '#debug': {
         url: request.url,
@@ -127,6 +134,7 @@ const formatHashtagOutput = (request, data) => ({
     latestPosts: data.edge_hashtag_to_media ? data.edge_hashtag_to_media.edges.map((edge) => edge.node).map(formatSinglePost) : [],
 });
 
+// Formats data from window._shared_data.entry_data.PostPage[0].graphql.shortcode_media to nicer output
 const formatPostOutput = (request, data) => ({
     '#debug': {
         url: request.url,
@@ -146,6 +154,7 @@ const formatPostOutput = (request, data) => ({
     })).reverse() : [],
 });
 
+// Finds correct variable in window._shared_data.entry_data based on pageType
 const getOutputFromEntryData = (pageType, request, data) => {
     switch (pageType) {
         case PAGE_TYPES.PLACE: return formatPlaceOutput(request, data.LocationsPage[0].graphql.location);
@@ -155,6 +164,7 @@ const getOutputFromEntryData = (pageType, request, data) => {
     }
 };
 
+// Takes correct variable from window object and formats it into proper output
 const scrapeDetails = async (request, itemSpec, entryData) => {
     const output = getOutputFromEntryData(itemSpec.pageType, request, entryData);
     await Apify.pushData(output);
