@@ -63,5 +63,5 @@
             "editor": "proxy"
         }
     },
-    "required": ["urls", "proxy"]
+    "required": ["type", "proxy"]
 }
