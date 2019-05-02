@@ -161,6 +161,7 @@ const scrapePosts = async (page, request, itemSpec, entryData) => {
 
     const output = posts[itemSpec.id].map((item, index) => ({
         '#debug': {
+            ...Apify.utils.createRequestDebugInfo(request),
             index,
             ...itemSpec,
             shortcode: item.node.shortcode,

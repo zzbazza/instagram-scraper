@@ -129,6 +129,7 @@ const scrapeComments = async (page, request, itemSpec, entryData) => {
     const output = comments[itemSpec.id].map((item, index) => ({
         '#debug': {
             index,
+            ...Apify.utils.createRequestDebugInfo(request),
             ...itemSpec,
         },
         id: item.node.id,

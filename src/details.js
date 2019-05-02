@@ -70,9 +70,7 @@ const formatJSONAddress = (jsonAddress) => {
 
 // Formats data from window._shared_data.entry_data.ProfilePage[0].graphql.user to nicer output
 const formatProfileOutput = (request, data) => ({
-    '#debug': {
-        url: request.url,
-    },
+    '#debug': Apify.utils.createRequestDebugInfo(request),
     id: data.id,
     username: data.username,
     fullName: data.full_name,
@@ -99,9 +97,7 @@ const formatProfileOutput = (request, data) => ({
 
 // Formats data from window._shared_data.entry_data.LocationPage[0].graphql.location to nicer output
 const formatPlaceOutput = (request, data) => ({
-    '#debug': {
-        url: request.url,
-    },
+    '#debug': Apify.utils.createRequestDebugInfo(request),
     id: data.id,
     name: data.name,
     public: data.has_public_page,
@@ -121,9 +117,7 @@ const formatPlaceOutput = (request, data) => ({
 
 // Formats data from window._shared_data.entry_data.TagPage[0].graphql.hashtag to nicer output
 const formatHashtagOutput = (request, data) => ({
-    '#debug': {
-        url: request.url,
-    },
+    '#debug': Apify.utils.createRequestDebugInfo(request),
     id: data.id,
     name: data.name,
     public: data.has_public_page,
@@ -136,9 +130,7 @@ const formatHashtagOutput = (request, data) => ({
 
 // Formats data from window._shared_data.entry_data.PostPage[0].graphql.shortcode_media to nicer output
 const formatPostOutput = (request, data) => ({
-    '#debug': {
-        url: request.url,
-    },
+    '#debug': Apify.utils.createRequestDebugInfo(request),
     ...formatSinglePost(data),
     captionIsEdited: typeof data.caption_is_edited !== 'undefined' ? data.caption_is_edited : null,
     hasRankedComments: data.has_ranked_comments,

@@ -4,6 +4,15 @@
     "type": "object",
     "schemaVersion": 1,
     "properties": {
+        "type": {
+            "title": "What to scrape",
+            "type": "string",
+            "description": "What to scrape from each page",
+            "editor": "select",
+            "enum": ["posts", "comments", "details"],
+            "enumTitles": ["Posts", "Comments", "Details"],
+            "default": "posts"
+        },
         "query": {
             "title": "Query",
             "type": "string",
@@ -37,15 +46,6 @@
             "patternValue": "https:\\/\\/www\\.instagram\\.com\\/.+",
             "uniqueItems": true,
             "prefill": ["https://www.instagram.com/explore/tags/nature/"]
-        },
-        "type": {
-            "title": "What to scrape",
-            "type": "string",
-            "description": "What to scrape from each page",
-            "editor": "select",
-            "enum": ["posts", "comments", "details"],
-            "enumTitles": ["Posts", "Comments", "Details"],
-            "default": "posts"
         },
         "limit": {
             "title": "Max items",

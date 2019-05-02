@@ -97,9 +97,10 @@ async function main() {
         handlePageFunction,
 
         // If request failed 4 times then this function is executed.
-        handleFailedRequestFunction: async ({request}) => {
+        handleFailedRequestFunction: async ({ request }) => {
             Apify.utils.log.error(`${request.url}: Request ${request.url} failed 4 times`);
             await Apify.pushData({
+                '#debug': Apify.utils.createRequestDebugInfo(request),
                 '#error': request.url
             });
         },
