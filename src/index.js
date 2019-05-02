@@ -14,8 +14,6 @@ async function main() {
     Apify.utils.log.info('SEARCH!');
 
     const foundUrls = await searchUrls(input);
-
-    console.log('foundUrls', foundUrls);
     const urls = [
         ...(input.urls || []), 
         ...foundUrls,
