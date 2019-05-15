@@ -12,8 +12,8 @@ const formatHashtagResult = (item) =>  `https://www.instagram.com/explore/tags/$
  * @param {Object} input Input loaded from Apify.getInput();
  */
 const searchUrls = async (input) => {
-    const { query, searchType, searchLimit = 10 } = input;
-    if (!query) return [];
+    const { search, searchType, searchLimit = 10 } = input;
+    if (!search) return [];
 
     try {
         if (!searchType) throw errors.searchTypeIsRequired();
@@ -28,9 +28,9 @@ const searchUrls = async (input) => {
         process.exit(1);
     }
 
-    Apify.utils.log.info(`Searching for "${query}"`);
+    Apify.utils.log.info(`Searching for "${search}"`);
 
-    const searchUrl = `https://www.instagram.com/web/search/topsearch/?context=${searchType}&query=${encodeURIComponent(query)}`;
+    const searchUrl = `https://www.instagram.com/web/search/topsearch/?context=${searchType}&query=${encodeURIComponent(search)}`;
     const response = await request({
         url: searchUrl,
         json: true,

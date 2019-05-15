@@ -9,11 +9,11 @@ const errors = require('./errors');
 
 async function main() {
     const input = await Apify.getInput();
-    const { proxy, type, limit = 200 } = input;
+    const { proxy, resultsType, resultsLimit = 200 } = input;
 
     const foundUrls = await searchUrls(input);
     const urls = [
-        ...(input.urls || []), 
+        ...(input.directUrls || []), 
         ...foundUrls,
     ];
 
@@ -26,8 +26,8 @@ async function main() {
 
     try {
         if (!proxy) throw errors.proxyIsRequired();
-        if (!type) throw errors.typeIsRequired();
-        if (!Object.values(SCRAPE_TYPES).includes(type)) throw errors.unsupportedType(type);
+        if (!resultsType) throw errors.typeIsRequired();
+        if (!Object.values(SCRAPE_TYPES).includes(resultsType)) throw errors.unsupportedType(resultsType);
     } catch (error) {
         console.log('--  --  --  --  --');
         console.log(' ');
@@ -40,7 +40,7 @@ async function main() {
 
     const requestListSources = urls.map((url) => ({
         url,
-        userData: { limit },
+        userData: { limit: resultsLimit },
     }));
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
@@ -61,7 +61,7 @@ async function main() {
             // Wait for the page to parse it's data
             while (!page.itemSpec) await page.waitFor(100);
 
-            switch (type) {
+            switch (resultsType) {
                 case SCRAPE_TYPES.POSTS: return handlePostsGraphQLResponse(page, response);
                 case SCRAPE_TYPES.COMMENTS: return handleCommentsGraphQLResponse(page, response);
             }
@@ -75,7 +75,7 @@ async function main() {
         const itemSpec = getItemSpec(entryData);
         page.itemSpec = itemSpec;
 
-        switch (type) {
+        switch (resultsType) {
             case SCRAPE_TYPES.POSTS: return scrapePosts(page, request, itemSpec, entryData);
             case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec, entryData);
             case SCRAPE_TYPES.DETAILS: return scrapeDetails(request, itemSpec, entryData);

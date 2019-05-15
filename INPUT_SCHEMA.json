@@ -1,28 +1,19 @@
 {
     "title": "Input schema for Instagram scraper",
-    "description": "This scraper takes the provided URLs and attempts to scrape instagram posts, comments or detailed information from each of URL. It's able to scrape posts from user profiles, hashtags and places. Comments from posts and detailed information about all of these. <br/> <strong>Important: Proxy is required to use this solution</strong>",
+    "description": "This scraper takes the provided Instagram URLs or search results and attempts to scrape Instagram posts, comments or detailed information from each of URL. It's able to scrape posts from user profiles, hashtags and places. Comments from posts and detailed information about all of these. <br/> <strong>Important: Proxy is required to use this solution</strong>",
     "type": "object",
     "schemaVersion": 1,
     "properties": {
-        "type": {
-            "title": "What to scrape",
+        "search": {
+            "title": "Search",
             "type": "string",
-            "description": "What to scrape from each page",
-            "editor": "select",
-            "enum": ["posts", "comments", "details"],
-            "enumTitles": ["Posts", "Comments", "Details"],
-            "default": "posts"
-        },
-        "query": {
-            "title": "Query",
-            "type": "string",
-            "description": "What to query instagram for",
+            "description": "What to query to search Instagram for",
             "editor": "textfield"
         },
         "searchType": {
-            "title": "Query type",
+            "title": "Search type",
             "type": "string",
-            "description": "What to search",
+            "description": "What to type of items to search (you can search hashtags, profiles and places)",
             "editor": "select",
             "enum": ["user", "hashtag", "place"],
             "enumTitles": ["Search users", "Search hashtags", "Search places"],
@@ -31,14 +22,14 @@
         "searchLimit": {
             "title": "Search results limit",
             "type": "integer",
-            "description": "How many results from search should be processed",
+            "description": "How many search results (eq. pages) should be processed",
             "editor": "number",
             "default": 10,
             "minimum": 1,
             "maximum": 100
         },
-        "urls": {
-            "title": "URLs",
+        "directUrls": {
+            "title": "Instagram URLs",
             "type": "array",
             "description": "From which pages should posts/comments/details be loaded. Provide complete url to the profile, hashtag, place or post.",
             "editor": "stringList",
@@ -47,10 +38,19 @@
             "uniqueItems": true,
             "prefill": ["https://www.instagram.com/explore/tags/nature/"]
         },
-        "limit": {
+        "resultsType": {
+            "title": "Which data to scrape",
+            "type": "string",
+            "description": "What to scrape from each Instagram URL or search result",
+            "editor": "select",
+            "enum": ["posts", "comments", "details"],
+            "enumTitles": ["Posts", "Comments", "Details"],
+            "default": "posts"
+        },
+        "resultsLimit": {
             "title": "Max items",
             "type": "integer",
-            "description": "How many posts or comments to scrape from each page, ignored when \"Details\" type is specified",
+            "description": "How many posts or comments to scrape from each Instagram URL or found page, ignored when \"Details\" type is specified",
             "editor": "number",
             "unit": "per page",
             "default": 200
@@ -63,5 +63,5 @@
             "editor": "proxy"
         }
     },
-    "required": ["type", "proxy"]
+    "required": ["resultsType", "proxy"]
 }

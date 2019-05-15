@@ -5,47 +5,62 @@
 Since instagram has removed the option to load public data through API, this actor should help replace this functionality. It allows you to scrape
 posts from a users profile page, hashtage page or place. When a link to an Instagram post is provided it can scrape Instagram comments.
 
-This solution also allows user to query instagram for hashtags, user profiles and places.
+The instagram data scraper supports following features:
 
-*The only limitation of this solution is that it can only retrieve public data that are accessible through instagram webpage. Private profiles and hashtags with limited
-post counts will not output all data.*
+- scrape profiles - you can either scrape posts or get metadata from the profile
 
-## Open source solution for instagram API
-You can manage the results in any languague (Python, PHP, Node JS/NPM). See the FAQ or <a href="https://www.apify.com/docs/api" target="blank">our API reference</a> to learn more about getting results from this Instagram Actor.
-The code of this Instagram actor is also open source, so you can create your own solution if you need.
+- scrape hashtags - you can either scrape posts or scrape metadata from the hashtag
 
-## INPUT
+- scrape places - you can either scrape posts or scrape metadata from the place
 
-Input of this actor should be JSON containing list of pages on instagram which should be visited. Required fields are:
+- scrape comments - you can scrape comments from any post
+
+Features *not* available in this scraper:
+
+- scrape instagram followers - List of followers is accessible only after sign in, which this solution does not support
+
+- scrape instagram following - List of followed profiles is accessible only after sign in, which this solution does not support
+
+If you are interested in this solution and want to know more about how it works, I wrote a short introduction [Apify blog](https://medium.com/p/21d05506aeb3).
+
+## Instagram scraper - future
+
+In the future this solution will be extended with following features
+
+- Scraping and download of Instagram photos
+- Scraping of Instagram stories
+
+## Input parameters
+
+Input of this scraper should be JSON containing list of pages on instagram which should be visited. Required fields are:
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| query | String | (optional) Query to search Instagram for |
-| searchType | String | (optional, required with query) What to search instagram for, default is "hashtag", other options are "user" or "place"  |
+| search | String | (optional) Query to search Instagram for |
+| searchType | String | (optional, required with search) What to search instagram for, default is "hashtag", other options are "user" or "place"  |
 | searchLimit | String | (optional) How many search results to process, default is 20, maximum is 100  |
-| urls | Array | (optional) List of instagram URLs |
-| type | String | What to scrape from each page, default is "posts" the other option is "comments" |
-| limit | Integer | How many items should be loaded from each URL (limit is per page)  |
+| directUrls | Array | (optional) List of Instagram URLs |
+| resultsType | String | What to scrape from each page, default is "posts" the other option is "comments" |
+| resultsLimit | Integer | How many items should be loaded from each URL (limit is per page)  |
 | proxy | Object | Proxy configuration |
 
-### PROXY
 This solution requires use of **Proxy servers**, either your own proxy servers or you can use <a href="https://www.apify.com/docs/proxy">Apify Proxy</a>.
 
-### Input example
+### Instagram scraper Input example
 ```json
 {
-    "query": "Náměstí míru",
+    "search": "Náměstí míru",
     "searchType": "place",
     "searchLimit": 10,
-    "urls": [ "https://www.instagram.com/teslamotors/" ],
-    "type": "posts",
-    "limit": 100,
+    "directUrls": [ "https://www.instagram.com/teslamotors/" ],
+    "resultsType": "posts",
+    "resultsLimit": 100,
     "proxy": { "useApifyProxy": true, "apifyProxyGroups": [] }
 }
 
 ```
 
-## Run & Console output
+## During the run
 
 During the run, the actor will output messages letting the you know what is going on. Each message always contains a short label specifying which page
 from the provided list is currently specified.
@@ -54,11 +69,13 @@ When items are loaded from the page, you should see a message about this event w
 If you provide incorrect input to the actor, it will immediately stop with failure state and output an explanation of
 what is wrong.
 
-## Dataset items
+## Instagram export
 
 During the run, the actor is storing results into dataset, each item is a separate item in the dataset.
 
-### Instagram posts
+You can manage the results in any languague (Python, PHP, Node JS/NPM). See the FAQ or <a href="https://www.apify.com/docs/api" target="blank">our API reference</a> to learn more about getting results from this Instagram Actor.
+
+## Scraped Instagram posts
 Structure of each item in Instagram Posts looks like this:
 
 ```json
@@ -84,7 +101,7 @@ Structure of each item in Instagram Posts looks like this:
 }
 ```
 
-### Instagram comments
+## Scraped Instagram comments
 Structure of each item in Instagram Comments looks like this:
 
 ```json
@@ -108,7 +125,7 @@ Structure of each item in Instagram Comments looks like this:
 }
 ```
 
-### Instagram User detail
+## Scraped Instagram Profile
 Structure of each user detail looks like this:
 
 ```json
@@ -172,7 +189,7 @@ Structure of each user detail looks like this:
 }
 ```
 
-### Instagram Hashtag detail
+## Scraped Instagram Hashtag
 Structure of each hashtag detail looks like this:
 
 ```json
@@ -218,7 +235,7 @@ Structure of each hashtag detail looks like this:
 }
 ```
 
-### Instagram Place detail
+## Scraped Instagram Place
 Structure of each place detail looks like this:
 
 ```json
@@ -279,26 +296,58 @@ Structure of each place detail looks like this:
 }
 ```
 
-### Instagram Post detail
+## Scraped Instagram Post
 Structure of each post detail looks like this:
 
 ```json
 {
   "#debug": {
-    "index": 13,
-    "pageType": "post",
-    "id": "Bw7jACTn3tC",
-    "postCommentsDisabled": false,
-    "postIsVideo": true,
-    "postVideoViewCount": 418505,
-    "postVideoDurationSecs": 13.05
+    "url": "https://www.instagram.com/p/BxNXsMxHPxP",
+    "loadedUrl": "https://www.instagram.com/p/BxNXsMxHPxP/",
+    "method": "GET",
+    "retryCount": 0,
+    "errorMessages": null
   },
-  "id": "17847980458427200",
-  "text": "#thankyouavengers",
-  "timestamp": null,
-  "ownerId": "3821638094",
-  "ownerIsVerified": false,
-  "ownerUsername": "exelya_alvyolita",
-  "ownerProfilePicUrl": "https://scontent-ort2-1.cdninstagram.com/vp/b12a3649da329b32a3d7f0d2127d5033/5D6141DD/t51.2885-19/s150x150/54446808_273968013485672_6984748001717649408_n.jpg?_nc_ht=scontent-ort2-1.cdninstagram.com"
+  "type": "Video",
+  "shortCode": "BxNXsMxHPxP",
+  "caption": "Marvel Studios’ #AvengersEndgame is shattering records across the globe. See it again in theaters: [link in bio]",
+  "commentsCount": 1794,
+  "dimensionsHeight": 750,
+  "dimensionsWidth": 750,
+  "displayUrl": "https://scontent-ort2-1.cdninstagram.com/vp/239e87b3b648f33169202e98a717e194/5CDE033C/t51.2885-15/e35/59449246_615674172234740_4080098836227673311_n.jpg?_nc_ht=scontent-ort2-1.cdninstagram.com",
+  "likesCount": null,
+  "videoDuration": 30.05,
+  "videoViewCount": 1041624,
+  "timestamp": "2019-05-08T16:51:42.000Z",
+  "locationName": null,
+  "ownerFullName": "Avengers: Endgame",
+  "captionIsEdited": false,
+  "hasRankedComments": false,
+  "commentsDisabled": false,
+  "displayResourceUrls": [
+    "https://scontent-ort2-1.cdninstagram.com/vp/3cbe04cc1130a78ed12f2f4a63a7e5f0/5CDE6799/t51.2885-15/sh0.08/e35/s640x640/59449246_615674172234740_4080098836227673311_n.jpg?_nc_ht=scontent-ort2-1.cdninstagram.com",
+    "https://scontent-ort2-1.cdninstagram.com/vp/239e87b3b648f33169202e98a717e194/5CDE033C/t51.2885-15/e35/59449246_615674172234740_4080098836227673311_n.jpg?_nc_ht=scontent-ort2-1.cdninstagram.com",
+    "https://scontent-ort2-1.cdninstagram.com/vp/239e87b3b648f33169202e98a717e194/5CDE033C/t51.2885-15/e35/59449246_615674172234740_4080098836227673311_n.jpg?_nc_ht=scontent-ort2-1.cdninstagram.com"
+  ],
+  "locationSlug": null,
+  "ownerUsername": "avengers",
+  "isAdvertisement": false,
+  "taggedUsers": [],
+  "latestComments": [
+    {
+      "ownerUsername": "_.jaheen._",
+      "text": "Who knew trailers can have the good stuff! 🙌🙌"
+    },
+    ...
+  ]
 }
 ```
+
+## How to scrape instagram
+I wrote a short introduction to this solution and how it works, it's available on [blog.apify.com](https://medium.com/p/21d05506aeb3)
+
+## Instagram scraper - future
+In the future this solution will be extended with following features
+
+- Scraping and download of Instagram photos
+- Scraping of Instagram stories
