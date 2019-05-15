@@ -15,7 +15,7 @@ The instagram data scraper supports following features:
 
 - scrape comments - you can scrape comments from any post
 
-Features *not* available in this scraper:
+Features **not** available in this scraper:
 
 - scrape instagram followers - List of followers is accessible only after sign in, which this solution does not support
 
