@@ -2,10 +2,10 @@
 
 ## Instagram scraper
 
-Since instagram has removed the option to load public data through API, this actor should help replace this functionality. It allows you to scrape
+Since Instagram has removed the option to load public data through API, this actor should help replace this functionality. It allows you to scrape
 posts from a users profile page, hashtage page or place. When a link to an Instagram post is provided it can scrape Instagram comments.
 
-The instagram data scraper supports following features:
+The Instagram data scraper supports following features:
 
 - scrape profiles - you can either scrape posts or get metadata from the profile
 
@@ -17,11 +17,11 @@ The instagram data scraper supports following features:
 
 Features **not** available in this scraper:
 
-- scrape instagram followers - List of followers is accessible only after sign in, which this solution does not support
+- scrape Instagram followers - List of followers is accessible only after sign in, which this solution does not support
 
-- scrape instagram following - List of followed profiles is accessible only after sign in, which this solution does not support
+- scrape Instagram following - List of followed profiles is accessible only after sign in, which this solution does not support
 
-If you are interested in this solution and want to know more about how it works, I wrote a short introduction [Apify blog](https://medium.com/p/21d05506aeb3).
+If you are interested in this solution and want to know more about how it works, I wrote a short introduction on [Apify blog](https://medium.com/p/21d05506aeb3).
 
 ## Instagram scraper - future
 
@@ -32,12 +32,12 @@ In the future this solution will be extended with following features
 
 ## Input parameters
 
-Input of this scraper should be JSON containing list of pages on instagram which should be visited. Required fields are:
+Input of this scraper should be JSON containing list of pages on Instagram which should be visited. Required fields are:
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
 | search | String | (optional) Query to search Instagram for |
-| searchType | String | (optional, required with search) What to search instagram for, default is "hashtag", other options are "user" or "place"  |
+| searchType | String | (optional, required with search) What to search Instagram for, default is "hashtag", other options are "user" or "place"  |
 | searchLimit | String | (optional) How many search results to process, default is 20, maximum is 100  |
 | directUrls | Array | (optional) List of Instagram URLs |
 | resultsType | String | What to scrape from each page, default is "posts" the other option is "comments" |
@@ -76,7 +76,7 @@ During the run, the actor is storing results into dataset, each item is a separa
 You can manage the results in any languague (Python, PHP, Node JS/NPM). See the FAQ or <a href="https://www.apify.com/docs/api" target="blank">our API reference</a> to learn more about getting results from this Instagram Actor.
 
 ## Scraped Instagram posts
-Structure of each item in Instagram Posts looks like this:
+Structure of each item in Instagram posts looks like this:
 
 ```json
 {
@@ -102,7 +102,7 @@ Structure of each item in Instagram Posts looks like this:
 ```
 
 ## Scraped Instagram comments
-Structure of each item in Instagram Comments looks like this:
+Structure of each item in Instagram comments looks like this:
 
 ```json
 {
@@ -125,8 +125,8 @@ Structure of each item in Instagram Comments looks like this:
 }
 ```
 
-## Scraped Instagram Profile
-Structure of each user detail looks like this:
+## Scraped Instagram profile
+Structure of each user profile looks like this:
 
 ```json
 {
@@ -189,7 +189,7 @@ Structure of each user detail looks like this:
 }
 ```
 
-## Scraped Instagram Hashtag
+## Scraped Instagram hashtag
 Structure of each hashtag detail looks like this:
 
 ```json
@@ -235,7 +235,7 @@ Structure of each hashtag detail looks like this:
 }
 ```
 
-## Scraped Instagram Place
+## Scraped Instagram place
 Structure of each place detail looks like this:
 
 ```json
@@ -296,7 +296,7 @@ Structure of each place detail looks like this:
 }
 ```
 
-## Scraped Instagram Post
+## Scraped Instagram post
 Structure of each post detail looks like this:
 
 ```json
@@ -343,7 +343,7 @@ Structure of each post detail looks like this:
 }
 ```
 
-## How to scrape instagram
+## How to scrape Instagram
 I wrote a short introduction to this solution and how it works, it's available on [blog.apify.com](https://medium.com/p/21d05506aeb3)
 
 ## Instagram scraper - future
