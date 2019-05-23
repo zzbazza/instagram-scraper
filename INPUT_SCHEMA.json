@@ -7,7 +7,7 @@
         "search": {
             "title": "Search",
             "type": "string",
-            "description": "Here you can provide a search query which will be used to search Instagram for profiles, hashtags or places. <br /><strong>This field is optional, but this field or 'Direct Instagramp page URLs' must be provided (or both)</strong>",
+            "description": "Here you can provide a search query which will be used to search Instagram for profiles, hashtags or places. <br /><br /><strong>This field is optional, but this field or 'Direct Instagram page URLs' must be provided (or both)</strong>",
             "editor": "textfield",
             "prefill": "Nature"
         },
@@ -32,7 +32,7 @@
         "directUrls": {
             "title": "Direct Instagram page URLs",
             "type": "array",
-            "description": "If you already have URL(s) of page(s) you wish to scrape, you can set them here. <br /><strong>This field is optional, but this field or 'Search' must be provided (or both)</strong>",
+            "description": "If you already have URL(s) of page(s) you wish to scrape, you can set them here. <br /><br /><strong>This field is optional, but this field or 'Search' must be provided (or both)</strong>",
             "editor": "stringList",
             "placeholderValue": "URL",
             "patternValue": "https:\\/\\/www\\.instagram\\.com\\/.+",
