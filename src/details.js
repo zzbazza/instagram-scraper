@@ -29,21 +29,25 @@ const formatDisplayResources = (resources) => {
 };
 
 // Format Post Edge item into cleaner output
-const formatSinglePost = (node) => ({
-    type: node.__typename ? node.__typename.replace('Graph', '') : (node.is_video ? 'Video' : 'Image'),
-    shortCode: node.shortcode,
-    caption: node.edge_media_to_caption.edges.length ? node.edge_media_to_caption.edges[0].node.text : '',
-    commentsCount: node.edge_media_to_comment.count,
-    dimensionsHeight: node.dimensions.height,
-    dimensionsWidth: node.dimensions.width,
-    displayUrl: node.display_url,
-    likesCount: node.edge_liked_by ? node.edge_liked_by.count : null,
-    videoDuration: node.video_duration,
-    videoViewCount: node.video_view_count,
-    timestamp: node.taken_at_timestamp ? new Date(parseInt(node.taken_at_timestamp) * 1000) : null,
-    locationName: node.location ? node.location.name : null,
-    ownerFullName: node.owner ? node.owner.full_name : null,
-});
+const formatSinglePost = (node) => {
+    const comments = node.edge_media_to_comment || node.edge_media_to_parent_comment || node.edge_media_preview_comment;
+    const likes = node.edge_liked_by || node.edge_media_preview_like;
+    return {
+        type: node.__typename ? node.__typename.replace('Graph', '') : (node.is_video ? 'Video' : 'Image'),
+        shortCode: node.shortcode,
+        caption: node.edge_media_to_caption.edges.length ? node.edge_media_to_caption.edges[0].node.text : '',
+        commentsCount: comments ? comments.count : null,
+        dimensionsHeight: node.dimensions.height,
+        dimensionsWidth: node.dimensions.width,
+        displayUrl: node.display_url,
+        likesCount: likes ? likes.count : null,
+        videoDuration: node.video_duration,
+        videoViewCount: node.video_view_count,
+        timestamp: node.taken_at_timestamp ? new Date(parseInt(node.taken_at_timestamp) * 1000) : null,
+        locationName: node.location ? node.location.name : null,
+        ownerFullName: node.owner ? node.owner.full_name : null,
+    };
+}
 
 // Translates word to have first letter uppercased so word will become Word
 const uppercaseFirstLetter = (word) => {
