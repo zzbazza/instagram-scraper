@@ -22,9 +22,9 @@ module.exports = {
     GRAPHQL_ENDPOINT: 'https://www.instagram.com/graphql/query/?query_hash=',
     // Resource types blocked from loading to speed up the solution
     ABORTED_RESOUCE_TYPES: [
-        'stylesheet',
+        // 'stylesheet',
         'image',
-        'media',
+        // 'media',
         'font',
         'texttrack',
         'fetch',

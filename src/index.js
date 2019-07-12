@@ -62,12 +62,17 @@ async function main() {
             while (!page.itemSpec) await page.waitFor(100);
 
             switch (resultsType) {
-                case SCRAPE_TYPES.POSTS: return handlePostsGraphQLResponse(page, response);
-                case SCRAPE_TYPES.COMMENTS: return handleCommentsGraphQLResponse(page, response);
+                case SCRAPE_TYPES.POSTS: return handlePostsGraphQLResponse(page, response)
+                    .catch( error => Apify.utils.log.error(error));
+                case SCRAPE_TYPES.COMMENTS: return handleCommentsGraphQLResponse(page, response)
+                    .catch( error => Apify.utils.log.error(error));
             }
         });
 
-        return page.goto(request.url);
+        return page.goto(request.url, {
+            // itemSpec timeouts
+            timeout: 50 * 1000
+        });
     };
 
     const handlePageFunction = async ({ page, request }) => {
