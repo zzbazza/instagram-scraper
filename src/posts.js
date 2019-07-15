@@ -71,7 +71,7 @@ const loadMore = async (pageData, page, retry = 0) => {
                 && responseUrl.includes('%22first%22')
         },
         { timeout: 20000 }
-    );
+    ).catch(() => null);
 
     let scrolled;
     for (let i = 0; i < 10; i++) {
