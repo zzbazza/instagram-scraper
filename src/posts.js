@@ -168,6 +168,7 @@ const scrapePosts = async (page, request, itemSpec, entryData) => {
             postLocationId: item.node.location && item.node.location.id || null,
             postOwnerId: item.node.owner && item.node.owner.id || null,
         },
+        alt: item.node.accessibility_caption,
         url: 'https://www.instagram.com/p/' + item.node.shortcode,
         likesCount: item.node.edge_media_preview_like.count,
         imageUrl: item.node.display_url,
