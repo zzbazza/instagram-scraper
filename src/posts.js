@@ -1,4 +1,5 @@
 const Apify = require('apify');
+const { expandOwnerDetails } = require('./user_details');
 const { getCheckedVariable, log } = require('./helpers');
 const { PAGE_TYPES, GRAPHQL_ENDPOINT } = require('./consts');
 
@@ -99,7 +100,7 @@ const loadMore = async (pageData, page, retry = 0) => {
             const json = await response.json();
             if (json) data = json['data'];
         } catch (error) {
-            Apify.utils.log.error(error);
+            await Apify.utils.log.error(error);
         }
     }
 
@@ -139,8 +140,10 @@ const finiteScroll = async (pageData, page, request, length = 0) => {
  * @param {Object} request Apify Request object
  * @param {Object} itemSpec Parsed page data
  * @param {Object} entryData data from window._shared_data.entry_data
+ * @param {Object} input Input provided by user
+ * @param {Object} proxy Proxy config provided by user
  */
-const scrapePosts = async (page, request, itemSpec, entryData) => {
+const scrapePosts = async (page, request, itemSpec, entryData, input, proxy) => {
     const timeline = getPostsFromEntryData(itemSpec.pageType, entryData);
     initData[itemSpec.id] = timeline;
 
@@ -159,7 +162,7 @@ const scrapePosts = async (page, request, itemSpec, entryData) => {
         await finiteScroll(itemSpec, page, request, posts);
     }
 
-    const output = posts[itemSpec.id].map((item, index) => ({
+    let output = posts[itemSpec.id].map((item, index) => ({
         '#debug': {
             ...Apify.utils.createRequestDebugInfo(request),
             index,
@@ -175,8 +178,13 @@ const scrapePosts = async (page, request, itemSpec, entryData) => {
         firstComment: item.node.edge_media_to_caption.edges[0] && item.node.edge_media_to_caption.edges[0].node.text,
         timestamp: new Date(parseInt(item.node.taken_at_timestamp) * 1000),
         locationName: item.node.location && item.node.location.name || null,
+        ownerId: item.node.owner && item.node.owner.id || null,
         ownerUsername: item.node.owner && item.node.owner.username || null,
     })).slice(0, request.userData.limit);
+
+    if (input.expandOwner && itemSpec.pageType !== PAGE_TYPES.PROFILE) {
+        output = await expandOwnerDetails(output, page, itemSpec, proxy);
+    }
 
     await Apify.pushData(output);
     log(itemSpec, `${output.length} items saved, task finished`);

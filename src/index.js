@@ -3,6 +3,7 @@ const { scrapePosts, handlePostsGraphQLResponse } = require('./posts');
 const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments');
 const { scrapeDetails }  = require('./details');
 const { searchUrls } = require('./search');
+const { login } = require('./login');
 const { getItemSpec } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORTED_RESOUCE_TYPES, SCRAPE_TYPES } = require('./consts');
 const errors = require('./errors');
@@ -10,6 +11,17 @@ const errors = require('./errors');
 async function main() {
     const input = await Apify.getInput();
     const { proxy, resultsType, resultsLimit = 200 } = input;
+
+    if (proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
+
+    let maxConcurrency = 1000;
+
+    if ((input.loginCookies && Array.isArray(input.loginCookies)) || (input.loginUsername && input.loginPassword)) {
+        await Apify.utils.log.warning('Either login credentials or cookies were used, setting maxConcurrency to 1 and using one proxy session!');
+        maxConcurrency = 1;
+        if (proxy.useApifyProxy) proxy.apifyProxySession = `insta_session_${Date.now()}`;
+    }
+
 
     const foundUrls = await searchUrls(input);
     const urls = [
@@ -45,7 +57,12 @@ async function main() {
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
 
-    const gotoFunction = async ({request, page}) => {
+    const gotoFunction = async ({ request, page }) => {
+        await page.setBypassCSP(true);
+        if (input.loginCookies && Array.isArray(input.loginCookies)) {
+            await page.setCookie(...input.loginCookies);
+        } else if (input.loginUsername && input.loginPassword) await login(input.loginUsername, input.loginPassword, page);
+
         await page.setRequestInterception(true);
         page.on('request', (request) => {
             if (ABORTED_RESOUCE_TYPES.includes(request.resourceType())) return request.abort();
@@ -81,13 +98,11 @@ async function main() {
         page.itemSpec = itemSpec;
 
         switch (resultsType) {
-            case SCRAPE_TYPES.POSTS: return scrapePosts(page, request, itemSpec, entryData);
+            case SCRAPE_TYPES.POSTS: return scrapePosts(page, request, itemSpec, entryData, input, proxy);
             case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec, entryData);
-            case SCRAPE_TYPES.DETAILS: return scrapeDetails(request, itemSpec, entryData);
+            case SCRAPE_TYPES.DETAILS: return scrapeDetails(input, request, itemSpec, entryData, page, proxy);
         };
     }
-
-    if (proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
 
     const crawler = new Apify.PuppeteerCrawler({
         requestList,
@@ -98,6 +113,7 @@ async function main() {
         launchPuppeteerOptions: {
             ...proxy,
         },
+        maxConcurrency,
         handlePageTimeoutSecs: 12 * 60 * 60,
         handlePageFunction,
 
