@@ -100,7 +100,7 @@ async function main() {
         switch (resultsType) {
             case SCRAPE_TYPES.POSTS: return scrapePosts(page, request, itemSpec, entryData, input, proxy);
             case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec, entryData);
-            case SCRAPE_TYPES.DETAILS: return scrapeDetails(input, request, itemSpec, entryData, page, proxy);
+            case SCRAPE_TYPES.DETAILS: return scrapeDetails(input, request, itemSpec, entryData, page);
         };
     }
 

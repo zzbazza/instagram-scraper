@@ -135,8 +135,8 @@ const formatHashtagOutput = (request, data) => ({
 });
 
 // Formats data from window._shared_data.entry_data.PostPage[0].graphql.shortcode_media to nicer output
-const formatPostOutput = async (input, request, data, page, itemSpec, proxy) => { 
-    const likedBy = input.expandLikedBy ? await getPostLikes(input.likedByLimit, page, itemSpec, proxy) : undefined;
+const formatPostOutput = async (input, request, data, page, itemSpec) => { 
+    const likedBy = input.expandLikedBy ? await getPostLikes(page, itemSpec, input) : undefined;
     return {
         '#debug': Apify.utils.createRequestDebugInfo(request),
         ...formatSinglePost(data),
@@ -158,12 +158,12 @@ const formatPostOutput = async (input, request, data, page, itemSpec, proxy) => 
 };
 
 // Finds correct variable in window._shared_data.entry_data based on pageType
-const getOutputFromEntryData = (input, itemSpec, request, data, page, proxy) => {
+const getOutputFromEntryData = (input, itemSpec, request, data, page) => {
     switch (itemSpec.pageType) {
         case PAGE_TYPES.PLACE: return formatPlaceOutput(request, data.LocationsPage[0].graphql.location);
         case PAGE_TYPES.PROFILE: return formatProfileOutput(request, data.ProfilePage[0].graphql.user);
         case PAGE_TYPES.HASHTAG: return formatHashtagOutput(request, data.TagPage[0].graphql.hashtag);
-        case PAGE_TYPES.POST: return formatPostOutput(input, request, data.PostPage[0].graphql.shortcode_media, page, itemSpec, proxy);
+        case PAGE_TYPES.POST: return formatPostOutput(input, request, data.PostPage[0].graphql.shortcode_media, page, itemSpec, input);
     }
 };
 
