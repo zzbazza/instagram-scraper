@@ -1,4 +1,3 @@
-const Apify = require('apify');
 const got = require('got');
 
 let QUERY_IDS = {
