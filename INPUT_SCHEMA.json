@@ -112,9 +112,9 @@
         },
         "expandOwners": {
             "title": "Query post owner",
-            "type": "string",
+            "type": "boolean",
             "description": "If this feature is used, then for each post the solution will attempt to query additional details about it's owner. This will drastically slow down crawling speed and increase chance of an account ban if credentials are provided.",
-            "editor": "textfield",
+            "editor": "checkbox",
             "sectionCaption": "Experimental features",
             "sectionDescription": "Features in this section are highly experimental, can result in ban of account if logged in and might cause the solution to fail."
         }
