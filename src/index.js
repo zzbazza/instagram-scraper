@@ -62,11 +62,16 @@ async function main() {
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
 
+    let cookies = input.loginCookies;
+
     const gotoFunction = async ({ request, page }) => {
         await page.setBypassCSP(true);
-        if (input.loginCookies && Array.isArray(input.loginCookies)) {
-            await page.setCookie(...input.loginCookies);
-        } else if (input.loginUsername && input.loginPassword) await login(input.loginUsername, input.loginPassword, page);
+        if (cookies && Array.isArray(cookies)) {
+            await page.setCookie(...cookies);
+        } else if (input.loginUsername && input.loginPassword) {
+            await login(input.loginUsername, input.loginPassword, page)
+            cookies = await page.cookies();
+        };
 
         await page.setRequestInterception(true);
         page.on('request', (request) => {
