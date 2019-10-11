@@ -6,6 +6,7 @@ const { searchUrls } = require('./search');
 const { login } = require('./login');
 const { getItemSpec } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORTED_RESOUCE_TYPES, SCRAPE_TYPES } = require('./consts');
+const { initQueryIds } = require('./query_ids');
 const errors = require('./errors');
 
 async function main() {
@@ -13,6 +14,8 @@ async function main() {
     const { proxy, resultsType, resultsLimit = 200 } = input;
 
     if (proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
+
+    await initQueryIds();
 
     let maxConcurrency = 1000;
 

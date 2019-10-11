@@ -1,5 +1,6 @@
-const { log, finiteQuery, QUERY_IDS } = require('./helpers');
+const { log, finiteQuery } = require('./helpers');
 const { PAGE_TYPES } = require('./consts');
+const { QUERY_IDS } = require('./query_ids');
 
 const { placePostsQueryId, hashtagPostsQueryId, profilePostsQueryId } = QUERY_IDS;
 

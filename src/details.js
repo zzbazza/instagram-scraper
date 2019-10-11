@@ -144,7 +144,7 @@ const formatHashtagOutput = (request, data) => ({
 
 // Formats data from window._shared_data.entry_data.PostPage[0].graphql.shortcode_media to nicer output
 const formatPostOutput = async (input, request, data, page, itemSpec) => { 
-    const likedBy = input.expandLikedBy ? await getPostLikes(page, itemSpec, input) : undefined;
+    const likedBy = await getPostLikes(page, itemSpec, input);
     return {
         '#debug': Apify.utils.createRequestDebugInfo(request),
         ...formatSinglePost(data),

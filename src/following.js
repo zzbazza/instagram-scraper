@@ -1,10 +1,11 @@
-const { log, finiteQuery, QUERY_IDS } = require('./helpers');
+const { log, finiteQuery } = require('./helpers');
+const { QUERY_IDS } = require('./query_ids');
 
 const { profileFollowingQueryId } = QUERY_IDS;
 
 async function getProfileFollowing(page, itemSpec, input) {
     const limit = input.followingLimit;
-    if (!limit) return [];
+    if (!limit) return undefined;
 
     log(itemSpec, `Loading users current profile follows (limit ${limit} items).`);
 

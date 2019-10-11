@@ -1,4 +1,5 @@
-const { log, finiteQuery, QUERY_IDS } = require('./helpers');
+const { log, finiteQuery } = require('./helpers');
+const { QUERY_IDS } = require('./query_ids');
 
 const { postLikesQueryId } = QUERY_IDS;
 
