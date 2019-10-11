@@ -16,7 +16,9 @@ async function main() {
 
     let maxConcurrency = 1000;
 
-    if ((input.loginCookies && Array.isArray(input.loginCookies)) || (input.loginUsername && input.loginPassword)) {
+    const usingLogin = (input.loginCookies && Array.isArray(input.loginCookies)) || (input.loginUsername && input.loginPassword);
+
+    if (usingLogin) {
         await Apify.utils.log.warning('Either login credentials or cookies were used, setting maxConcurrency to 1 and using one proxy session!');
         maxConcurrency = 1;
         if (proxy.useApifyProxy) proxy.apifyProxySession = `insta_session_${Date.now()}`;
@@ -79,8 +81,6 @@ async function main() {
             while (!page.itemSpec) await page.waitFor(100);
 
             switch (resultsType) {
-                case SCRAPE_TYPES.POSTS: return handlePostsGraphQLResponse(page, response)
-                    .catch( error => Apify.utils.log.error(error));
                 case SCRAPE_TYPES.COMMENTS: return handleCommentsGraphQLResponse(page, response)
                     .catch( error => Apify.utils.log.error(error));
             }
@@ -105,6 +105,13 @@ async function main() {
 
     const handlePageFunction = async ({ page, request }) => {
         const entryData = await page.evaluate(() => window.__initialData.data.entry_data);
+        if (entryData.LoginAndSignupPage) {
+            await Apify.utils.log.error(`!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!`);
+            await Apify.utils.log.error(`Cannot load data from page ${request.url}`);
+            await Apify.utils.log.error(`This page requires login`);
+            await Apify.utils.log.error(`!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!`);
+            return [];
+        }
         const itemSpec = getItemSpec(entryData);
         page.itemSpec = itemSpec;
 
