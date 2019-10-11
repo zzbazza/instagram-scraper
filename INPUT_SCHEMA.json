@@ -68,7 +68,7 @@
             "description": "If you want to sign in to instagram to have access to more data than on anonymous profile, then enter your username here",
             "editor": "textfield",
             "sectionCaption": "Login using credentials",
-            "sectionCredentials": "Instagram limits access to certain data (likes, post user data and some other) if user is anonymous. You can provide credentials here to use a normal account. This is not secure and can end up with a ban of the used account, so do not use your own credentials here and rather create a new temporary account. When credentials are used, the run is limited to concurrency 1 and one session, so that the account does not get banned too soon."
+            "sectionDescription": "Instagram limits access to certain data (likes, post user data and some other) if user is anonymous. You can provide credentials here to use a normal account. This is not secure and can end up with a ban of the used account, so do not use your own credentials here and rather create a new temporary account. When credentials are used, the run is limited to concurrency 1 and one session, so that the account does not get banned too soon."
         },
         "loginPassword": {
             "title": "Login password",
@@ -82,7 +82,7 @@
             "description": "If you want to sign in to instagram to have access to more data than on anonymous profile, but do not wish to have your credentials in input, then you can use your cookies.",
             "editor": "json",
             "sectionCaption": "Login using cookies",
-            "sectionCredentials": "Instagram limits access to certain data (likes, post user data and some other) if user is anonymous. You can provide you cookies here (copyied from chrome plugin like 'EditThisCookie' to use a normal account. This is more secure than using your credentials but you can still end up with a ban of the used account, so do not use your own cookies here and rather create a new temporary account. When cookies are used, the run is limited to concurrency 1 and one session, so that the account does not get banned too soon."
+            "sectionDescription": "Instagram limits access to certain data (likes, post user data and some other) if user is anonymous. You can provide you cookies here (copyied from chrome plugin like 'EditThisCookie' to use a normal account. This is more secure than using your credentials but you can still end up with a ban of the used account, so do not use your own cookies here and rather create a new temporary account. When cookies are used, the run is limited to concurrency 1 and one session, so that the account does not get banned too soon."
         
         }
     },
