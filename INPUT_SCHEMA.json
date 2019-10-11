@@ -83,7 +83,40 @@
             "editor": "json",
             "sectionCaption": "Login using cookies",
             "sectionDescription": "Instagram limits access to certain data (likes, post user data and some other) if user is anonymous. You can provide you cookies here (copyied from chrome plugin like 'EditThisCookie' to use a normal account. This is more secure than using your credentials but you can still end up with a ban of the used account, so do not use your own cookies here and rather create a new temporary account. When cookies are used, the run is limited to concurrency 1 and one session, so that the account does not get banned too soon."
-        
+        },
+        "likedByLimits": {
+            "title": "Get post likes",
+            "type": "integer",
+            "description": "If this limit is set above 0, then the solution will attempt to load additional details about users who liked the post.",
+            "editor": "number",
+            "unit": "likes",
+            "default": 0,
+            "sectionCaption": "Additional data loaded from detail pages",
+            "sectionDescription": "If limits in this section are set above 0, then when the solution enters a page, it attempts to load the specified items until limit is reached. All of the options below require login credentials."
+        },
+        "followingLimit": {
+            "title": "Get profile following",
+            "type": "integer",
+            "description": "If this limit is set above 0, then the solution will attempt to find users who the profile owner is following.",
+            "editor": "number",
+            "unit": "users",
+            "default": 0
+        },
+        "followedByLimit": {
+            "title": "Get profile followed by",
+            "type": "integer",
+            "description": "If this limit is set above 0, then the solution will attempt to find users who the profile owner is followed by.",
+            "editor": "number",
+            "unit": "users",
+            "default": 0
+        },
+        "expandOwners": {
+            "title": "Query post owner",
+            "type": "string",
+            "description": "If this feature is used, then for each post the solution will attempt to query additional details about it's owner. This will drastically slow down crawling speed and increase chance of an account ban if credentials are provided.",
+            "editor": "textfield",
+            "sectionCaption": "Experimental features",
+            "sectionDescription": "Features in this section are highly experimental, can result in ban of account if logged in and might cause the solution to fail."
         }
     },
     "required": ["proxy"]

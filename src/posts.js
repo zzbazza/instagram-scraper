@@ -42,7 +42,7 @@ const scrapePosts = async (page, request, itemSpec, entryData, input, proxy) => 
         ownerUsername: item.owner && item.owner.username || null,
     })).slice(0, request.userData.limit);
 
-    if (input.expandOwner && itemSpec.pageType !== PAGE_TYPES.PROFILE) {
+    if (input.expandOwners && itemSpec.pageType !== PAGE_TYPES.PROFILE) {
         output = await expandOwnerDetails(output, page, itemSpec, proxy);
     }
 
