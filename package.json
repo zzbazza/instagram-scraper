@@ -4,7 +4,7 @@
 	"description": "Crawls through instagram pages and stores posts, comments and details",
 	"main": "main.js",
 	"dependencies": {
-		"apify": "^0.13.7",
+		"apify": "^0.16.0",
 		"got": "^9.6.0",
 		"request-promise-native": "^1.0.7",
 		"tough-cookie": "^3.0.1",
