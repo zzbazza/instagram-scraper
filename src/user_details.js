@@ -10,7 +10,7 @@ async function expandOwnerDetails(posts, page, itemSpec, proxy) {
     log(itemSpec, `Expanding owner details for ${posts.length} items.`);
     let proxyConfig = { ...proxy };
 
-    const userAgent = await page.browser().userAgent();
+    const userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 105.0.0.11.118 (iPhone11,8; iOS 12_3_1; en_US; en-US; scale=2.00; 828x1792; 165586599)';
 
     let proxyUrl = null;
     if (proxyConfig.useApifyProxy) {
@@ -49,15 +49,15 @@ async function expandOwnerDetails(posts, page, itemSpec, proxy) {
     let retries = 0;
     for (let i = 0; i < posts.length && retries < 10; i++) {
         if (!posts[i].ownerId) {
-            transformedPosts[i].push(posts[i]);
-            return;
+            transformedPosts.push(posts[i]);
+            continue;
         }
         const newPost = { ...posts[i] };
         if (users[posts[i].ownerId]) {
             newPost.ownerUsername = users[posts[i].ownerId].username;
             newPost.owner = users[posts[i].ownerId];
             transformedPosts.push(newPost);
-            return;
+            continue;
         }
         try {
             const { body } = await got(`https://i.instagram.com/api/v1/users/${posts[i].ownerId}/info/`, { 
