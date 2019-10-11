@@ -2,6 +2,8 @@ const Apify = require('apify');
 const { log } = require('./helpers');
 const { PAGE_TYPES } = require('./consts');
 const { getPostLikes } = require('./likes');
+const { getProfileFollowedBy } = require('./followed_by');
+const { getProfileFollowing } = require('./following');
 
 // Formats IGTV Video Post edge item into nicely formated output item
 const formatIGTVVideo = (edge) => {
@@ -75,31 +77,37 @@ const formatJSONAddress = (jsonAddress) => {
 }
 
 // Formats data from window._shared_data.entry_data.ProfilePage[0].graphql.user to nicer output
-const formatProfileOutput = (request, data) => ({
-    '#debug': Apify.utils.createRequestDebugInfo(request),
-    id: data.id,
-    username: data.username,
-    fullName: data.full_name,
-    biography: data.biography,
-    externalUrl: data.external_url,
-    externalUrlShimmed: data.external_url_linkshimmed,
-    followersCount: data.edge_followed_by.count,
-    followsCount: data.edge_follow.count,
-    hasChannel: data.has_channel,
-    highlightReelCount: data.highlight_reel_count,
-    isBusinessAccount: data.is_business_account,
-    joinedRecently: data.is_joined_recently,
-    businessCategoryName: data.business_category_name,
-    private: data.is_private,
-    verified: data.is_verified,
-    profilePicUrl: data.profile_pic_url,
-    profilePicUrlHD: data.profile_pic_url_hd,
-    facebookPage: data.connected_fb_page,
-    igtvVideoCount: data.edge_felix_video_timeline.count,
-    latestIgtvVideos: data.edge_felix_video_timeline ? data.edge_felix_video_timeline.edges.map(formatIGTVVideo) : [],
-    postsCount: data.edge_owner_to_timeline_media.count,
-    latestPosts: data.edge_owner_to_timeline_media ? data.edge_owner_to_timeline_media.edges.map((edge) => edge.node).map(formatSinglePost) : [],
-});
+const formatProfileOutput = async (input, request, data, page, itemSpec) => {
+    const following = await getProfileFollowing(page, itemSpec, input);
+    const followedBy = await getProfileFollowedBy(page, itemSpec, input);
+    return {
+        '#debug': Apify.utils.createRequestDebugInfo(request),
+        id: data.id,
+        username: data.username,
+        fullName: data.full_name,
+        biography: data.biography,
+        externalUrl: data.external_url,
+        externalUrlShimmed: data.external_url_linkshimmed,
+        followersCount: data.edge_followed_by.count,
+        followsCount: data.edge_follow.count,
+        hasChannel: data.has_channel,
+        highlightReelCount: data.highlight_reel_count,
+        isBusinessAccount: data.is_business_account,
+        joinedRecently: data.is_joined_recently,
+        businessCategoryName: data.business_category_name,
+        private: data.is_private,
+        verified: data.is_verified,
+        profilePicUrl: data.profile_pic_url,
+        profilePicUrlHD: data.profile_pic_url_hd,
+        facebookPage: data.connected_fb_page,
+        igtvVideoCount: data.edge_felix_video_timeline.count,
+        latestIgtvVideos: data.edge_felix_video_timeline ? data.edge_felix_video_timeline.edges.map(formatIGTVVideo) : [],
+        postsCount: data.edge_owner_to_timeline_media.count,
+        latestPosts: data.edge_owner_to_timeline_media ? data.edge_owner_to_timeline_media.edges.map((edge) => edge.node).map(formatSinglePost) : [],
+        following,
+        followedBy,
+    };
+};
 
 // Formats data from window._shared_data.entry_data.LocationPage[0].graphql.location to nicer output
 const formatPlaceOutput = (request, data) => ({
@@ -160,10 +168,10 @@ const formatPostOutput = async (input, request, data, page, itemSpec) => {
 // Finds correct variable in window._shared_data.entry_data based on pageType
 const getOutputFromEntryData = (input, itemSpec, request, data, page) => {
     switch (itemSpec.pageType) {
-        case PAGE_TYPES.PLACE: return formatPlaceOutput(request, data.LocationsPage[0].graphql.location);
-        case PAGE_TYPES.PROFILE: return formatProfileOutput(request, data.ProfilePage[0].graphql.user);
-        case PAGE_TYPES.HASHTAG: return formatHashtagOutput(request, data.TagPage[0].graphql.hashtag);
-        case PAGE_TYPES.POST: return formatPostOutput(input, request, data.PostPage[0].graphql.shortcode_media, page, itemSpec, input);
+        case PAGE_TYPES.PLACE: return formatPlaceOutput(request, data.LocationsPage[0].graphql.location, page, itemSpec);
+        case PAGE_TYPES.PROFILE: return formatProfileOutput(input, request, data.ProfilePage[0].graphql.user, page, itemSpec);
+        case PAGE_TYPES.HASHTAG: return formatHashtagOutput(request, data.TagPage[0].graphql.hashtag, page, itemSpec);
+        case PAGE_TYPES.POST: return formatPostOutput(input, request, data.PostPage[0].graphql.shortcode_media, page, itemSpec);
     }
 };
 

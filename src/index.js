@@ -86,10 +86,21 @@ async function main() {
             }
         });
 
-        return page.goto(request.url, {
+        const response = await page.goto(request.url, {
             // itemSpec timeouts
-            timeout: 50 * 1000
+            timeout: 50 * 1000,
         });
+
+        if (input.loginCookies && Array.isArray(input.loginCookies)) {
+            try {
+                await page.waitForSelector('span[aria-label="Profile"]', { timeout: 10000 });
+            } catch (loginError) {
+                await Apify.utils.log.info('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
+                process.exit(1);
+            }
+        }
+
+        return response;
     };
 
     const handlePageFunction = async ({ page, request }) => {

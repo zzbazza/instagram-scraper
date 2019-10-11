@@ -96,7 +96,7 @@ const log = (pageData, message) => {
     return Apify.utils.log.info(`${label}: ${message}`);
 };
 
-const queryIds = {
+const QUERY_IDS = {
     "postCommentsQueryId": "97b41c52301f77ce508f55e66d17620e",
     "postLikesQueryId": "d5d763b1e2acf209d62d22d184488e57",
     "placePostsQueryId": "1b84447a4d8b6d6d0426fefb34514485",
@@ -213,4 +213,5 @@ module.exports = {
     getCheckedVariable,
     log,
     finiteQuery,
+    QUERY_IDS,
 };

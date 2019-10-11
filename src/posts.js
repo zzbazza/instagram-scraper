@@ -162,6 +162,11 @@ const scrapePosts = async (page, request, itemSpec, entryData, input, proxy) => 
         await finiteScroll(itemSpec, page, request, posts);
     }
 
+    const filteredItemSpec = {};
+    if (itemSpec.tagName) filteredItemSpec.queryTag = itemSpec.tagName;
+    if (itemSpec.userUsername) filteredItemSpec.queryUsername = itemSpec.userUsername;
+    if (itemSpec.locationName) filteredItemSpec.queryLocation = itemSpec.locationName;
+
     let output = posts[itemSpec.id].map((item, index) => ({
         '#debug': {
             ...Apify.utils.createRequestDebugInfo(request),
@@ -171,6 +176,7 @@ const scrapePosts = async (page, request, itemSpec, entryData, input, proxy) => 
             postLocationId: item.node.location && item.node.location.id || null,
             postOwnerId: item.node.owner && item.node.owner.id || null,
         },
+        ...filteredItemSpec,
         alt: item.node.accessibility_caption,
         url: 'https://www.instagram.com/p/' + item.node.shortcode,
         likesCount: item.node.edge_media_preview_like.count,
