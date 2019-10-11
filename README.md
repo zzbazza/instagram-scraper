@@ -6,7 +6,7 @@ Since Instagram has removed the option to load public data through its API, this
 
 The Instagram data scraper supports the following features:
 
-- Scrape profiles - you can either scrape posts or get metadata from the profile
+- Scrape profiles - you can either scrape posts or get metadata from the profile (including followers and following if logged in)
 
 - Scrape hashtags - you can either scrape posts or scrape metadata from the hashtag
 
@@ -14,11 +14,7 @@ The Instagram data scraper supports the following features:
 
 - Scrape comments - you can scrape comments from any post
 
-Features **not** available in this scraper:
-
-- Scrape Instagram followers - list of followers is accessible only after login, which this solution does not support
-
-- Scrape Instagram following - list of followed profiles is accessible only after login, which this solution does not support
+- Scrape likes - you can scrape likes from any post (if logged in)
 
 If you are interested in this solution and want to know more about how it works, I wrote a short introduction on [Apify blog](https://medium.com/p/21d05506aeb3).
 
@@ -26,7 +22,6 @@ If you are interested in this solution and want to know more about how it works,
 
 In the future, this solution will be extended with following features:
 
-- Scraping and download of Instagram photos
 - Scraping of Instagram stories
 
 ## Input parameters
@@ -42,6 +37,13 @@ The input of this scraper should be JSON containing the list of pages on Instagr
 | resultsType | String | What to scrape from each page, default is "posts" the other option is "comments" |
 | resultsLimit | Integer | How many items should be loaded from each URL (limit is per page)  |
 | proxy | Object | Proxy configuration |
+| loginUsername | String | (optional) Username used to log in to instagram |
+| loginPassword | String | (optional) Password used to log in to instagram |
+| loginCookies | Array | (optional) Cookies copied from logged in profile (for example using EditThisCookie extension) |
+| likedByLimits | Number | (optional) How many likes should be scraped from post page (only works with login) |
+| followingLimit | Number | (optional) How many following should be scraped from profile page (only works with login) |
+| followedByLimit | Number | (optional) How many followers should be scraped from profile page (only works with login) |
+| expandOwners | Boolean | (optional) **Experimental** Load additional details about post owner for each post (only works with login, can result in account ban) |
 
 This solution requires the use of **Proxy servers**, either your own proxy servers or you can use <a href="https://www.apify.com/docs/proxy">Apify Proxy</a>.
 
@@ -58,6 +60,16 @@ This solution requires the use of **Proxy servers**, either your own proxy serve
 }
 
 ```
+
+### Using login credentials
+This solution allows you to log in using either username and password, or already initialized cookies of logged in user.
+If you use this option, the solution will do as much as possible to prevent the account from being banned (slow down to just one page open at a time and introduce delays between actions).
+
+**It's highly recommended not to use your own account (unless you have to) and instead create a new instagram account to use with this solution.**
+**Using your own account can result in the account being banned by Instagram.**
+
+If you do not want to provide username and password to the run, you can use cookies to log in. I recommend using chrome browser extension like EditThisCookie. With it, just go to Instagram,
+log in with the account you want to use and then use the extension to export cookies. This should give you an array of cookies which you can then just paste as a value of `loginCookies` field in input.
 
 ## During the run
 
@@ -343,9 +355,3 @@ The structure of each post detail looks like this:
 
 ## How to scrape Instagram
 I wrote a short introduction to this solution and how it works. You can find it at [blog.apify.com](https://medium.com/p/21d05506aeb3)
-
-## Instagram scraper - future
-In the future, this solution will be extended with following features
-
-- Scraping and download of Instagram photos
-- Scraping of Instagram stories
