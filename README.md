@@ -43,7 +43,7 @@ The input of this scraper should be JSON containing the list of pages on Instagr
 | likedByLimits | Number | (optional) How many likes should be scraped from post page (only works with login) |
 | followingLimit | Number | (optional) How many following should be scraped from profile page (only works with login) |
 | followedByLimit | Number | (optional) How many followers should be scraped from profile page (only works with login) |
-| expandOwners | Boolean | (optional) **Experimental** Load additional details about post owner for each post (only works with login, can result in account ban) |
+| expandOwners | Boolean | (optional) **!Experimental!** Load additional details about post owner for each post (only works with login, can result in account ban) |
 
 This solution requires the use of **Proxy servers**, either your own proxy servers or you can use <a href="https://www.apify.com/docs/proxy">Apify Proxy</a>.
 
@@ -68,7 +68,7 @@ If you use this option, the solution will do as much as possible to prevent the 
 **It's highly recommended not to use your own account (unless you have to) and instead create a new instagram account to use with this solution.**
 **Using your own account can result in the account being banned by Instagram.**
 
-If you do not want to provide username and password to the run, you can use cookies to log in. I recommend using chrome browser extension like EditThisCookie. With it, just go to Instagram,
+If you do not want to provide username and password to the run, you can use cookies to log in. I recommend using chrome browser extension like [EditThisCookie](https://chrome.google.com/webstore/detail/editthiscookie/fngmhnnpilhplaeedifhccceomclgfbg?hl=cs). With it, just go to Instagram,
 log in with the account you want to use and then use the extension to export cookies. This should give you an array of cookies which you can then just paste as a value of `loginCookies` field in input.
 
 ## During the run
