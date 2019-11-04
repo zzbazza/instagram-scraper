@@ -43,7 +43,7 @@ The input of this scraper should be JSON containing the list of pages on Instagr
 | likedByLimits | Number | (optional) How many likes should be scraped from post page (only works with login) |
 | followingLimit | Number | (optional) How many following should be scraped from profile page (only works with login) |
 | followedByLimit | Number | (optional) How many followers should be scraped from profile page (only works with login) |
-| expandOwners | Boolean | (optional) **!Experimental!** Load additional details about post owner for each post (only works with login, can result in account ban) |
+| expandOwners | Boolean | (optional) **!Experimental!** Load additional details about post owner for each post (slows down the solution a lot) |
 
 This solution requires the use of **Proxy servers**, either your own proxy servers or you can use <a href="https://www.apify.com/docs/proxy">Apify Proxy</a>.
 
@@ -107,7 +107,8 @@ The structure of each item in Instagram posts looks like this:
   "firstComment": "Newly upgraded Model S and X drive units rolling down the production line at Gigafactory 1",
   "timestamp": "2019-04-25T14:57:01.000Z",
   "locationName": "Tesla Gigafactory 1",
-  "ownerUsername": "teslamotors"
+  "ownerUsername": "teslamotors",
+  "owner": {...}
 }
 ```
 
@@ -195,7 +196,9 @@ The structure of each user profile looks like this:
       "locationName": null
     },
     ...
-  ]
+  ],
+  "following": [],
+  "followedBy": [],
 }
 ```
 

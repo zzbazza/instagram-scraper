@@ -1,3 +1,4 @@
+const Apify = require('apify');
 const got = require('got');
 
 let QUERY_IDS = {
@@ -9,13 +10,18 @@ let QUERY_IDS = {
     "profileFollowingQueryId": "d04b0a864b4b54837c0d870b0e77e076",
     "profileFollowersQueryId": "c76146de99bb02f6415203be841dd25a",
     "profileChannelQueryId": "bc78b344a68ed16dd5d7f264681c4c76",
-    "profileTaggedQueryId": "ff260833edf142911047af6024eb634a"
+    "profileTaggedQueryId": "ff260833edf142911047af6024eb634a",
+    "postQueryId": "fead941d698dc1160a298ba7bec277ac",
 };
 
 async function initQueryIds() {
-    const queryIdsUrl = 'https://api.apify.com/v2/key-value-stores/pPFcCAtcn7MoDfXpk/records/query-ids.json?disableRedirect=true';
-    const { body } = await got(queryIdsUrl, { json: true });
-    QUERY_IDS = body;
+    try {
+        const queryIdsUrl = 'https://api.apify.com/v2/key-value-stores/pPFcCAtcn7MoDfXpk/records/query-ids.json?disableRedirect=true';
+        const { body } = await got(queryIdsUrl, { json: true });
+        QUERY_IDS = body;
+    } catch (error) {
+        await Apify.utils.log.error('Could not get current query ids, using the predefined ones.');
+    }
 }
 
 module.exports = { QUERY_IDS, initQueryIds };

@@ -138,6 +138,8 @@ async function main() {
         },
         launchPuppeteerOptions: {
             ...proxy,
+            headless: true,
+            stealth: true,
         },
         maxConcurrency,
         handlePageTimeoutSecs: 12 * 60 * 60,

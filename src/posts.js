@@ -11,9 +11,8 @@ const { getPosts } = require('./posts_graphql');
  * @param {Object} itemSpec Parsed page data
  * @param {Object} entryData data from window._shared_data.entry_data
  * @param {Object} input Input provided by user
- * @param {Object} proxy Proxy config provided by user
  */
-const scrapePosts = async (page, request, itemSpec, entryData, input, proxy) => {
+const scrapePosts = async (page, request, itemSpec, entryData, input) => {
     const posts = await getPosts(page, itemSpec, input);
 
     const filteredItemSpec = {};
@@ -43,7 +42,7 @@ const scrapePosts = async (page, request, itemSpec, entryData, input, proxy) => 
     })).slice(0, request.userData.limit);
 
     if (input.expandOwners && itemSpec.pageType !== PAGE_TYPES.PROFILE) {
-        output = await expandOwnerDetails(output, page, itemSpec, proxy);
+        output = await expandOwnerDetails(output, page, input, itemSpec);
     }
 
     await Apify.pushData(output);

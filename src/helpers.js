@@ -97,6 +97,7 @@ const log = (pageData, message) => {
 };
 
 const grapqlEndpoint = 'https://www.instagram.com/graphql/query/';
+
 async function getGotParams(page, input) {
     let proxyConfig = { ...input.proxy };
 
@@ -153,8 +154,8 @@ async function query(gotParams, searchParams, nodeTransformationFunc, itemSpec, 
             return nodeTransformationFunc(body.data);
         } catch (error) {
             if (error.message.includes(429)) {
-                log(itemSpec, `${logPrefix} - Encountered rate limit error, waiting 5 seconds.`);
-                await Apify.utils.sleep(5000);
+                log(itemSpec, `${logPrefix} - Encountered rate limit error, waiting ${(retries + 1) * 10} seconds.`);
+                await Apify.utils.sleep((retries + 1) * 10000);
             } else await Apify.utils.log.error(error);
             retries++;
         }
@@ -195,9 +196,16 @@ async function finiteQuery(queryId, variables, nodeTransformationFunc, limit, pa
     return results.slice(0, limit);
 }
 
+async function singleQuery(queryId, variables, nodeTransformationFunc, page, input, itemSpec, logPrefix) {
+    const gotParams = await getGotParams(page, input);
+    const searchParams = new URLSearchParams([['query_hash', queryId], ['variables', JSON.stringify(variables)]]);
+    return query(gotParams, searchParams, nodeTransformationFunc, itemSpec, logPrefix);
+}
+
 module.exports = {
     getItemSpec,
     getCheckedVariable,
     log,
     finiteQuery,
+    singleQuery,
 };
