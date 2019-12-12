@@ -126,7 +126,7 @@ The structure of each item in Instagram comments looks like this:
 ## Scraped Instagram profile
 The structure of each user profile looks like this:
 
-```json
+```yaml
 {
   "#debug": {
     "url": "https://www.instagram.com/avengers/"
@@ -165,7 +165,7 @@ The structure of each user profile looks like this:
       "videoDuration": 21.688,
       "videoViewCount": 77426
     },
-    ...
+    # ...
   ],
   "postsCount": 274,
   "latestPosts": [
@@ -182,7 +182,7 @@ The structure of each user profile looks like this:
       "timestamp": "2019-05-01T18:44:12.000Z",
       "locationName": null
     },
-    ...
+    # ...
   ]
 }
 ```
@@ -190,7 +190,7 @@ The structure of each user profile looks like this:
 ## Scraped Instagram hashtag
 The structure of each hashtag detail looks like this:
 
-```json
+```yaml
 {
   "#debug": {
     "url": "https://www.instagram.com/explore/tags/endgame/"
@@ -213,7 +213,7 @@ The structure of each hashtag detail looks like this:
       "timestamp": "2019-05-02T11:14:55.000Z",
       "locationName": null
     },
-    ...
+    # ...
   ],
   "latestPosts": [
     {
@@ -228,7 +228,7 @@ The structure of each hashtag detail looks like this:
       "timestamp": "2019-05-02T12:52:48.000Z",
       "locationName": null
     },
-    ...
+    # ...
   ]
 }
 ```
@@ -236,7 +236,7 @@ The structure of each hashtag detail looks like this:
 ## Scraped Instagram place
 The structure of each place detail looks like this:
 
-```json
+```yaml
 {
   "#debug": {
     "url": "https://www.instagram.com/explore/locations/1017812091/namesti-miru/"
@@ -274,7 +274,7 @@ The structure of each place detail looks like this:
       "timestamp": "2019-05-01T09:45:20.000Z",
       "locationName": null
     },
-    ...
+    # ...
   ],
   "latestPosts": [
     {
@@ -289,7 +289,7 @@ The structure of each place detail looks like this:
       "timestamp": "2019-05-02T09:46:45.000Z",
       "locationName": null
     },
-    ...
+    # ...
   ]
 }
 ```
@@ -297,7 +297,7 @@ The structure of each place detail looks like this:
 ## Scraped Instagram post
 The structure of each post detail looks like this:
 
-```json
+```yaml
 {
   "#debug": {
     "url": "https://www.instagram.com/p/BxNXsMxHPxP",
@@ -336,7 +336,7 @@ The structure of each post detail looks like this:
       "ownerUsername": "_.jaheen._",
       "text": "Who knew trailers can have the good stuff! 🙌🙌"
     },
-    ...
+    # ...
   ]
 }
 ```
