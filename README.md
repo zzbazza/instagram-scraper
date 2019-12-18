@@ -37,8 +37,6 @@ The input of this scraper should be JSON containing the list of pages on Instagr
 | resultsType | String | What to scrape from each page, default is "posts" the other option is "comments" |
 | resultsLimit | Integer | How many items should be loaded from each URL (limit is per page)  |
 | proxy | Object | Proxy configuration |
-| loginUsername | String | (optional) Username used to log in to instagram |
-| loginPassword | String | (optional) Password used to log in to instagram |
 | loginCookies | Array | (optional) Cookies copied from logged in profile (for example using EditThisCookie extension) |
 | likedByLimits | Number | (optional) How many likes should be scraped from post page (only works with login) |
 | followingLimit | Number | (optional) How many following should be scraped from profile page (only works with login) |
@@ -61,15 +59,17 @@ This solution requires the use of **Proxy servers**, either your own proxy serve
 
 ```
 
-### Using login credentials
-This solution allows you to log in using either username and password, or already initialized cookies of logged in user.
+### Using cookies to log in
+This solution allows you to log in using already initialized cookies of logged in user.
 If you use this option, the solution will do as much as possible to prevent the account from being banned (slow down to just one page open at a time and introduce delays between actions).
 
 **It's highly recommended not to use your own account (unless you have to) and instead create a new instagram account to use with this solution.**
 **Using your own account can result in the account being banned by Instagram.**
 
-If you do not want to provide username and password to the run, you can use cookies to log in. I recommend using chrome browser extension like [EditThisCookie](https://chrome.google.com/webstore/detail/editthiscookie/fngmhnnpilhplaeedifhccceomclgfbg?hl=cs). With it, just go to Instagram,
+To log in using cookies. I recommend using chrome browser extension like [EditThisCookie](https://chrome.google.com/webstore/detail/editthiscookie/fngmhnnpilhplaeedifhccceomclgfbg?hl=cs). With it, just go to Instagram,
 log in with the account you want to use and then use the extension to export cookies. This should give you an array of cookies which you can then just paste as a value of `loginCookies` field in input.
+
+**If you log out of instagram with the account that is connected to the cookies, it will invalidate them and your solution will stop working.**
 
 ## During the run
 

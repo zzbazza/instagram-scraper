@@ -1,9 +1,9 @@
 const Apify = require('apify');
+const crypto = require('crypto');
 const { scrapePosts, handlePostsGraphQLResponse } = require('./posts');
 const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments');
 const { scrapeDetails }  = require('./details');
 const { searchUrls } = require('./search');
-const { login } = require('./login');
 const { getItemSpec } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORTED_RESOUCE_TYPES, SCRAPE_TYPES } = require('./consts');
 const { initQueryIds } = require('./query_ids');
@@ -19,14 +19,14 @@ async function main() {
 
     let maxConcurrency = 1000;
 
-    const usingLogin = (input.loginCookies && Array.isArray(input.loginCookies)) || (input.loginUsername && input.loginPassword);
+    const usingLogin = input.loginCookies && Array.isArray(input.loginCookies);
 
     if (usingLogin) {
-        await Apify.utils.log.warning('Either login credentials or cookies were used, setting maxConcurrency to 1 and using one proxy session!');
+        await Apify.utils.log.warning('Cookies were used, setting maxConcurrency to 1 and using one proxy session!');
         maxConcurrency = 1;
-        if (proxy.useApifyProxy) proxy.apifyProxySession = `insta_session_${Date.now()}`;
+        const session = crypto.createHash('sha256').update(JSON.stringify(input.loginCookies)).digest('hex').substring(0,16)
+        if (proxy.useApifyProxy) proxy.apifyProxySession = `insta_session_${session}`;
     }
-
 
     const foundUrls = await searchUrls(input);
     const urls = [
@@ -99,11 +99,12 @@ async function main() {
             timeout: 50 * 1000,
         });
 
-        if (input.loginCookies && Array.isArray(input.loginCookies)) {
+        if (usingLogin) {
             try {
-                await page.waitForSelector('span[aria-label="Profile"]', { timeout: 10000 });
+                const viewerId = await page.evaluate(() => window._sharedData.config.viewerId);
+                if (!viewerId) throw new Error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
             } catch (loginError) {
-                await Apify.utils.log.info('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
+                await Apify.utils.log.error(loginError.message);
                 process.exit(1);
             }
         }
@@ -138,7 +139,7 @@ async function main() {
         },
         launchPuppeteerOptions: {
             ...proxy,
-            headless: true,
+            headless: false,
             stealth: true,
         },
         maxConcurrency,
