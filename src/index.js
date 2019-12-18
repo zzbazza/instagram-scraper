@@ -139,7 +139,7 @@ async function main() {
         },
         launchPuppeteerOptions: {
             ...proxy,
-            headless: false,
+            headless: true,
             stealth: true,
         },
         maxConcurrency,
