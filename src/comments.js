@@ -12,7 +12,7 @@ const comments = {};
  * @param {Object} data GraphQL data
  */
 const getCommentsFromGraphQL = (data) => {
-    const timeline = data.shortcode_media.edge_media_to_comment;
+    const timeline = data.shortcode_media.edge_media_to_parent_comment;
     const comments = timeline ? timeline.edges.reverse() : [];
     const hasNextPage = timeline ? timeline.page_info.has_next_page : false;
     return { comments, hasNextPage };
@@ -40,7 +40,7 @@ const loadMore = async (pageData, page, retry = 0) => {
     let clicked;
     for (let i = 0; i < 10; i++) {
         clicked = await Promise.all([
-            page.click('article ul li button'),
+            page.click('[aria-label="Load more comments"]'),
             page.waitForRequest(
                 (request) => {
                     const requestUrl = request.url();

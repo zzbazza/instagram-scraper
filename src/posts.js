@@ -128,10 +128,34 @@ const finiteScroll = async (pageData, page, request, length = 0) => {
         if (!timeline.hasNextPage) return;
     }
 
+    await page.waitFor(1500); // prevent rate limited error
+
     if (posts[pageData.id].length < request.userData.limit && posts[pageData.id].length !== length) {
         await finiteScroll(pageData, page, request, posts[pageData.id].length)
     }
 };
+
+const scrapePost = (request, itemSpec, entryData) => {
+    const item = entryData.PostPage[0].graphql.shortcode_media;
+
+    return {
+        '#debug': {
+            ...Apify.utils.createRequestDebugInfo(request),
+            ...itemSpec,
+            shortcode: item.shortcode,
+            postLocationId: item.location && item.location.id || null,
+            postOwnerId: item.owner && item.owner.id || null,
+        },
+        alt: item.accessibility_caption,
+        url: 'https://www.instagram.com/p/' + item.shortcode,
+        likesCount: item.edge_media_preview_like.count,
+        imageUrl: item.display_url,
+        firstComment: item.edge_media_to_caption.edges[0] && item.edge_media_to_caption.edges[0].node.text,
+        timestamp: new Date(parseInt(item.taken_at_timestamp) * 1000),
+        locationName: item.location && item.location.name || null,
+        ownerUsername: item.owner && item.owner.username || null,
+    }
+}
 
 /**
  * Takes data from entry data and from loaded xhr requests and parses them into final output.
@@ -140,7 +164,7 @@ const finiteScroll = async (pageData, page, request, length = 0) => {
  * @param {Object} itemSpec Parsed page data
  * @param {Object} entryData data from window._shared_data.entry_data
  */
-const scrapePosts = async (page, request, itemSpec, entryData) => {
+const scrapePosts = async (page, request, itemSpec, entryData, requestQueue) => {
     const timeline = getPostsFromEntryData(itemSpec.pageType, entryData);
     initData[itemSpec.id] = timeline;
 
@@ -154,15 +178,17 @@ const scrapePosts = async (page, request, itemSpec, entryData) => {
 
     await page.waitFor(500);
 
-    if (initData[itemSpec.id].hasNextPage && posts[itemSpec.id].length < request.userData.limit) {
+    const hasMostRecentPosts = await page.evaluate(() => document.querySelector('article > h2') !== null
+        && document.querySelector('article > h2').textContent === 'Most recent');
+
+    if (initData[itemSpec.id].hasNextPage && posts[itemSpec.id].length < request.userData.limit && hasMostRecentPosts) {
         await page.waitFor(1000);
-        await finiteScroll(itemSpec, page, request, posts);
+        await finiteScroll(itemSpec, page, request, posts.length);
     }
 
-    const output = posts[itemSpec.id].map((item, index) => ({
+    const output = posts[itemSpec.id].map((item) => ({
         '#debug': {
             ...Apify.utils.createRequestDebugInfo(request),
-            index,
             ...itemSpec,
             shortcode: item.node.shortcode,
             postLocationId: item.node.location && item.node.location.id || null,
@@ -178,7 +204,15 @@ const scrapePosts = async (page, request, itemSpec, entryData) => {
         ownerUsername: item.node.owner && item.node.owner.username || null,
     })).slice(0, request.userData.limit);
 
-    await Apify.pushData(output);
+    for (const post of output) {
+        if (post.locationName === null || post.ownerUsername === null) {
+            // Try to scrape at post detail
+            await requestQueue.addRequest({ url: post.url, userData: { label: 'postDetail'} });
+        } else {
+            await Apify.pushData(output);
+        }
+    }
+
     log(itemSpec, `${output.length} items saved, task finished`);
 }
 
@@ -198,6 +232,7 @@ async function handlePostsGraphQLResponse(page, response) {
     if (!responseUrl.includes(checkedVariable) || !responseUrl.includes('%22first%22')) return;
 
     const data = await response.json();
+
     const timeline = getPostsFromGraphQL(page.itemSpec.pageType, data['data']);
     
     posts[page.itemSpec.id] = posts[page.itemSpec.id].concat(timeline.posts);
@@ -211,6 +246,7 @@ async function handlePostsGraphQLResponse(page, response) {
 }
 
 module.exports = {
+    scrapePost,
     scrapePosts,
     handlePostsGraphQLResponse,
 };

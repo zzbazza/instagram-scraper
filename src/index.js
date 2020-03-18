@@ -1,5 +1,8 @@
 const Apify = require('apify');
-const { scrapePosts, handlePostsGraphQLResponse } = require('./posts');
+const safeEval = require('safe-eval');
+const _ = require('underscore');
+
+const { scrapePosts, handlePostsGraphQLResponse, scrapePost } = require('./posts');
 const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments');
 const { scrapeDetails }  = require('./details');
 const { searchUrls } = require('./search');
@@ -8,8 +11,19 @@ const { GRAPHQL_ENDPOINT, ABORTED_RESOUCE_TYPES, SCRAPE_TYPES } = require('./con
 const errors = require('./errors');
 
 async function main() {
-    const input = await Apify.getInput();
     const { proxy, resultsType, resultsLimit = 200 } = input;
+
+    let extendOutputFunction;
+    if (typeof input.extendOutputFunction === 'string' && input.extendOutputFunction.trim() !== '') {
+        try {
+            extendOutputFunction = safeEval(input.extendOutputFunction);
+        } catch (e) {
+            throw new Error(`'extendOutputFunction' is not valid Javascript! Error: ${e}`);
+        }
+        if (typeof extendOutputFunction !== 'function') {
+            throw new Error('extendOutputFunction is not a function! Please fix it or use just default ouput!');
+        }
+    }
 
     const foundUrls = await searchUrls(input);
     const urls = [
@@ -21,8 +35,6 @@ async function main() {
         Apify.utils.log.info('No URLs to process');
         process.exit(0);
     }
-
-    await searchUrls(input);
 
     try {
         if (!proxy) throw errors.proxyIsRequired();
@@ -48,7 +60,9 @@ async function main() {
     const gotoFunction = async ({request, page}) => {
         await page.setRequestInterception(true);
         page.on('request', (request) => {
-            if (ABORTED_RESOUCE_TYPES.includes(request.resourceType())) return request.abort();
+            if (ABORTED_RESOUCE_TYPES.includes(request.resourceType()) || request.url().includes('map_tile.php')
+                 || request.url().includes('logging_client_events')) return request.abort();
+
             request.continue();
         });
 
@@ -71,33 +85,57 @@ async function main() {
 
         return page.goto(request.url, {
             // itemSpec timeouts
-            timeout: 50 * 1000
+            timeout: 50 * 10000
         });
     };
 
     const handlePageFunction = async ({ page, request }) => {
+        await page.waitFor(() => (window.__initialData && window.__initialData.data), { timeout: 60000 });
         const entryData = await page.evaluate(() => window.__initialData.data.entry_data);
         const itemSpec = getItemSpec(entryData);
-        page.itemSpec = itemSpec;
 
-        switch (resultsType) {
-            case SCRAPE_TYPES.POSTS: return scrapePosts(page, request, itemSpec, entryData);
-            case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec, entryData);
-            case SCRAPE_TYPES.DETAILS: return scrapeDetails(request, itemSpec, entryData);
-        };
+        let userResult = {};
+        if (extendOutputFunction) {
+            userResult = await page.evaluate((functionStr) => {
+                // eslint-disable-next-line no-eval
+                const f = eval(functionStr);
+                return f();
+            }, input.extendOutputFunction);
+        }
+
+        if (request.userData.label === 'postDetail') {
+            const result = scrapePost(request, itemSpec, entryData);
+            _.extend(result, userResult);
+
+            await Apify.pushData(result);
+        } else {
+            page.itemSpec = itemSpec;
+
+            switch (resultsType) {
+                case SCRAPE_TYPES.POSTS: return scrapePosts(page, request, itemSpec, entryData, requestQueue);
+                case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec, entryData);
+                case SCRAPE_TYPES.DETAILS: return scrapeDetails(request, itemSpec, entryData, userResult);
+            };
+        }
     }
 
     if (proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
 
+    const requestQueue = await Apify.openRequestQueue();
+
     const crawler = new Apify.PuppeteerCrawler({
         requestList,
+        requestQueue,
         gotoFunction,
         puppeteerPoolOptions: {
             maxOpenPagesPerInstance: 1
         },
         launchPuppeteerOptions: {
             ...proxy,
+            headless: true,
+            stealth: true,
         },
+        maxConcurrency: 100,
         handlePageTimeoutSecs: 12 * 60 * 60,
         handlePageFunction,
 

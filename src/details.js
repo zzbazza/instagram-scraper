@@ -1,4 +1,5 @@
 const Apify = require('apify');
+const _ = require('underscore');
 const { log } = require('./helpers');
 const { PAGE_TYPES } = require('./consts');
 
@@ -25,7 +26,7 @@ const formatIGTVVideo = (edge) => {
 // Formats list of display recources into URLs
 const formatDisplayResources = (resources) => {
     if (!resources) return [];
-    return resources.map((resource) => resource.src);
+    return resources.map((resource) => resource.node.display_url);
 };
 
 // Format Post Edge item into cleaner output
@@ -139,7 +140,7 @@ const formatPostOutput = (request, data) => ({
     captionIsEdited: typeof data.caption_is_edited !== 'undefined' ? data.caption_is_edited : null,
     hasRankedComments: data.has_ranked_comments,
     commentsDisabled: data.comments_disabled,
-    displayResourceUrls: formatDisplayResources(data.display_resources),
+    displayResourceUrls: formatDisplayResources(data.edge_sidecar_to_children.edges),
     locationSlug: data.location ? data.location.slug : null,
     ownerUsername: data.owner ? data.owner.username : null,
     isAdvertisement: typeof data.is_ad !== 'undefined' ? data.is_ad : null,
@@ -161,8 +162,9 @@ const getOutputFromEntryData = (pageType, request, data) => {
 };
 
 // Takes correct variable from window object and formats it into proper output
-const scrapeDetails = async (request, itemSpec, entryData) => {
+const scrapeDetails = async (request, itemSpec, entryData, userResult) => {
     const output = getOutputFromEntryData(itemSpec.pageType, request, entryData);
+    _.extend(output, userResult);
     await Apify.pushData(output);
     log(itemSpec, `Page details saved, task finished`);
 };
