@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 const Apify = require('apify');
 const _ = require('underscore');
 const { log } = require('./helpers');
@@ -19,14 +20,13 @@ const formatIGTVVideo = (edge) => {
         likesCount: node.edge_liked_by ? node.edge_liked_by.count : null,
         videoDuration: node.video_duration || 0,
         videoViewCount: node.video_view_count,
-
-    }
+    };
 };
 
 // Formats list of display recources into URLs
 const formatDisplayResources = (resources) => {
     if (!resources) return [];
-    return resources.map((resource) => resource.node.display_url);
+    return resources.map(resource => resource.node.display_url);
 };
 
 // Format Post Edge item into cleaner output
@@ -34,6 +34,7 @@ const formatSinglePost = (node) => {
     const comments = node.edge_media_to_comment || node.edge_media_to_parent_comment || node.edge_media_preview_comment;
     const likes = node.edge_liked_by || node.edge_media_preview_like;
     return {
+        // eslint-disable-next-line no-nested-ternary
         type: node.__typename ? node.__typename.replace('Graph', '') : (node.is_video ? 'Video' : 'Image'),
         shortCode: node.shortcode,
         caption: node.edge_media_to_caption.edges.length ? node.edge_media_to_caption.edges[0].node.text : '',
@@ -44,18 +45,18 @@ const formatSinglePost = (node) => {
         likesCount: likes ? likes.count : null,
         videoDuration: node.video_duration,
         videoViewCount: node.video_view_count,
-        timestamp: node.taken_at_timestamp ? new Date(parseInt(node.taken_at_timestamp) * 1000) : null,
+        timestamp: node.taken_at_timestamp ? new Date(parseInt(node.taken_at_timestamp, 10) * 1000) : null,
         locationName: node.location ? node.location.name : null,
         ownerFullName: node.owner ? node.owner.full_name : null,
     };
-}
+};
 
 // Translates word to have first letter uppercased so word will become Word
 const uppercaseFirstLetter = (word) => {
     const uppercasedLetter = word.charAt(0).toUpperCase();
     const restOfTheWord = word.slice(1);
     return `${uppercasedLetter}${restOfTheWord}`;
-}
+};
 // Formats address in JSON into an object
 const formatJSONAddress = (jsonAddress) => {
     if (!jsonAddress) return '';
@@ -68,10 +69,10 @@ const formatJSONAddress = (jsonAddress) => {
     const result = {};
     Object.keys(address).forEach((key) => {
         const parsedKey = key.split('_').map(uppercaseFirstLetter).join('');
-        result[`address${parsedKey}`] = address[key]; 
+        result[`address${parsedKey}`] = address[key];
     });
     return result;
-}
+};
 
 // Formats data from window._shared_data.entry_data.ProfilePage[0].graphql.user to nicer output
 const formatProfileOutput = (request, data) => ({
@@ -97,7 +98,7 @@ const formatProfileOutput = (request, data) => ({
     igtvVideoCount: data.edge_felix_video_timeline.count,
     latestIgtvVideos: data.edge_felix_video_timeline ? data.edge_felix_video_timeline.edges.map(formatIGTVVideo) : [],
     postsCount: data.edge_owner_to_timeline_media.count,
-    latestPosts: data.edge_owner_to_timeline_media ? data.edge_owner_to_timeline_media.edges.map((edge) => edge.node).map(formatSinglePost) : [],
+    latestPosts: data.edge_owner_to_timeline_media ? data.edge_owner_to_timeline_media.edges.map(edge => edge.node).map(formatSinglePost) : [],
 });
 
 // Formats data from window._shared_data.entry_data.LocationPage[0].graphql.location to nicer output
@@ -116,8 +117,8 @@ const formatPlaceOutput = (request, data) => ({
     ...formatJSONAddress(data.address_json),
     profilePicUrl: data.profile_pic_url,
     postsCount: data.edge_location_to_media.count,
-    topPosts: data.edge_location_to_top_posts ? data.edge_location_to_top_posts.edges.map((edge) => edge.node).map(formatSinglePost) : [],
-    latestPosts: data.edge_location_to_media ? data.edge_location_to_media.edges.map((edge) => edge.node).map(formatSinglePost) : [],
+    topPosts: data.edge_location_to_top_posts ? data.edge_location_to_top_posts.edges.map(edge => edge.node).map(formatSinglePost) : [],
+    latestPosts: data.edge_location_to_media ? data.edge_location_to_media.edges.map(edge => edge.node).map(formatSinglePost) : [],
 });
 
 // Formats data from window._shared_data.entry_data.TagPage[0].graphql.hashtag to nicer output
@@ -129,8 +130,8 @@ const formatHashtagOutput = (request, data) => ({
     topPostsOnly: data.is_top_media_only,
     profilePicUrl: data.profile_pic_url,
     postsCount: data.edge_hashtag_to_media.count,
-    topPosts: data.edge_hashtag_to_top_posts ? data.edge_hashtag_to_top_posts.edges.map((edge) => edge.node).map(formatSinglePost) : [],
-    latestPosts: data.edge_hashtag_to_media ? data.edge_hashtag_to_media.edges.map((edge) => edge.node).map(formatSinglePost) : [],
+    topPosts: data.edge_hashtag_to_top_posts ? data.edge_hashtag_to_top_posts.edges.map(edge => edge.node).map(formatSinglePost) : [],
+    latestPosts: data.edge_hashtag_to_media ? data.edge_hashtag_to_media.edges.map(edge => edge.node).map(formatSinglePost) : [],
 });
 
 // Formats data from window._shared_data.entry_data.PostPage[0].graphql.shortcode_media to nicer output
@@ -144,8 +145,8 @@ const formatPostOutput = (request, data) => ({
     locationSlug: data.location ? data.location.slug : null,
     ownerUsername: data.owner ? data.owner.username : null,
     isAdvertisement: typeof data.is_ad !== 'undefined' ? data.is_ad : null,
-    taggedUsers: data.edge_media_to_tagged_user ? data.edge_media_to_tagged_user.edges.map((edge) => edge.node.user.username) : [],
-    latestComments: data.edge_media_to_comment ? data.edge_media_to_comment.edges.map((edge) => ({
+    taggedUsers: data.edge_media_to_tagged_user ? data.edge_media_to_tagged_user.edges.map(edge => edge.node.user.username) : [],
+    latestComments: data.edge_media_to_comment ? data.edge_media_to_comment.edges.map(edge => ({
         ownerUsername: edge.node.owner ? edge.node.owner.username : '',
         text: edge.node.text,
     })).reverse() : [],
@@ -153,6 +154,7 @@ const formatPostOutput = (request, data) => ({
 
 // Finds correct variable in window._shared_data.entry_data based on pageType
 const getOutputFromEntryData = (pageType, request, data) => {
+    // eslint-disable-next-line default-case
     switch (pageType) {
         case PAGE_TYPES.PLACE: return formatPlaceOutput(request, data.LocationsPage[0].graphql.location);
         case PAGE_TYPES.PROFILE: return formatProfileOutput(request, data.ProfilePage[0].graphql.user);
@@ -166,7 +168,7 @@ const scrapeDetails = async (request, itemSpec, entryData, userResult) => {
     const output = getOutputFromEntryData(itemSpec.pageType, request, entryData);
     _.extend(output, userResult);
     await Apify.pushData(output);
-    log(itemSpec, `Page details saved, task finished`);
+    log(itemSpec, 'Page details saved, task finished');
 };
 
 
