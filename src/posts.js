@@ -210,11 +210,11 @@ const scrapePosts = async (page, request, itemSpec, entryData, requestQueue) => 
     })).slice(0, request.userData.limit);
 
     for (const post of output) {
-        if (post.locationName === null || post.ownerUsername === null) {
+        if (itemSpec.pageType !== PAGE_TYPES.PROFILE && (post.locationName === null || post.ownerUsername === null)) {
             // Try to scrape at post detail
             await requestQueue.addRequest({ url: post.url, userData: { label: 'postDetail' } });
         } else {
-            await Apify.pushData(output);
+            await Apify.pushData(post);
         }
     }
 

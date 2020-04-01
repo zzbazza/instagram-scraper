@@ -135,7 +135,7 @@ const scrapeComments = async (page, request, itemSpec, entryData) => {
         },
         id: item.node.id,
         text: item.node.text,
-        timestamp: new Date(parseInt(item.node.createdAt, 10) * 1000),
+        timestamp: new Date(parseInt(item.node.created_at, 10) * 1000),
         ownerId: item.node.owner ? item.node.owner.id : null,
         ownerIsVerified: item.node.owner ? item.node.owner.is_verified : null,
         ownerUsername: item.node.owner ? item.node.owner.username : null,
