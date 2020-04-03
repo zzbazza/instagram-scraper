@@ -154,12 +154,12 @@ const formatPostOutput = (request, data) => ({
 
 // Finds correct variable in window._shared_data.entry_data based on pageType
 const getOutputFromEntryData = (pageType, request, data) => {
-    // eslint-disable-next-line default-case
     switch (pageType) {
         case PAGE_TYPES.PLACE: return formatPlaceOutput(request, data.LocationsPage[0].graphql.location);
         case PAGE_TYPES.PROFILE: return formatProfileOutput(request, data.ProfilePage[0].graphql.user);
         case PAGE_TYPES.HASHTAG: return formatHashtagOutput(request, data.TagPage[0].graphql.hashtag);
         case PAGE_TYPES.POST: return formatPostOutput(request, data.PostPage[0].graphql.shortcode_media);
+        default: throw new Error('Not supported');
     }
 };
 

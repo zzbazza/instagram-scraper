@@ -61,12 +61,12 @@ const getItemSpec = (entryData) => {
  * @param {Object} pageData Object representing currently loaded IG page
  */
 const getLogLabel = (pageData) => {
-    // eslint-disable-next-line default-case
     switch (pageData.pageType) {
         case PAGE_TYPES.PLACE: return `Place "${pageData.locationName}"`;
         case PAGE_TYPES.PROFILE: return `User "${pageData.userUsername}"`;
         case PAGE_TYPES.HASHTAG: return `Tag "${pageData.tagName}"`;
         case PAGE_TYPES.POST: return `Post "${pageData.id}"`;
+        default: throw new Error('Not supported');
     }
 };
 
@@ -75,12 +75,12 @@ const getLogLabel = (pageData) => {
  * @param {String} pageType
  */
 const getCheckedVariable = (pageType) => {
-    // eslint-disable-next-line default-case
     switch (pageType) {
         case PAGE_TYPES.PLACE: return '%22id%22';
         case PAGE_TYPES.PROFILE: return '%22id%22';
         case PAGE_TYPES.HASHTAG: return '%22tag_name%22';
         case PAGE_TYPES.POST: return '%22shortcode%22';
+        default: throw new Error('Not supported');
     }
 };
 

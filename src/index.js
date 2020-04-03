@@ -77,18 +77,18 @@ async function main() {
             // Wait for the page to parse it's data
             while (!page.itemSpec) await page.waitFor(100);
 
-            // eslint-disable-next-line default-case
             switch (resultsType) {
                 case SCRAPE_TYPES.POSTS: return handlePostsGraphQLResponse(page, response)
                     .catch(error => Apify.utils.log.error(error));
                 case SCRAPE_TYPES.COMMENTS: return handleCommentsGraphQLResponse(page, response)
                     .catch(error => Apify.utils.log.error(error));
+                default: throw new Error('Not supported');
             }
         });
 
         return page.goto(request.url, {
             // itemSpec timeouts
-            timeout: 50 * 10000,
+            timeout: 120 * 1000,
         });
     };
 
@@ -116,11 +116,11 @@ async function main() {
         } else {
             page.itemSpec = itemSpec;
 
-            // eslint-disable-next-line default-case
             switch (resultsType) {
                 case SCRAPE_TYPES.POSTS: return scrapePosts(page, request, itemSpec, entryData, requestQueue);
                 case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec, entryData);
                 case SCRAPE_TYPES.DETAILS: return scrapeDetails(request, itemSpec, entryData, userResult);
+                default: throw new Error('Not supported');
             }
         }
     };

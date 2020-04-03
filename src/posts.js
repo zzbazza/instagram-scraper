@@ -13,7 +13,6 @@ const posts = {};
  */
 const getPostsFromGraphQL = (pageType, data) => {
     let timeline;
-    // eslint-disable-next-line default-case
     switch (pageType) {
         case PAGE_TYPES.PLACE:
             timeline = data.location.edge_location_to_media;
@@ -24,6 +23,7 @@ const getPostsFromGraphQL = (pageType, data) => {
         case PAGE_TYPES.HASHTAG:
             timeline = data.hashtag.edge_hashtag_to_media;
             break;
+        default: throw new Error('Not supported');
     }
     const postItems = timeline ? timeline.edges : [];
     const hasNextPage = timeline ? timeline.page_info.has_next_page : false;
@@ -38,7 +38,6 @@ const getPostsFromGraphQL = (pageType, data) => {
  */
 const getPostsFromEntryData = (pageType, data) => {
     let pageData;
-    // eslint-disable-next-line default-case
     switch (pageType) {
         case PAGE_TYPES.PLACE:
             pageData = data.LocationsPage;
@@ -49,6 +48,7 @@ const getPostsFromEntryData = (pageType, data) => {
         case PAGE_TYPES.HASHTAG:
             pageData = data.TagPage;
             break;
+        default: throw new Error('Not supported');
     }
     if (!pageData || !pageData.length) return null;
 
