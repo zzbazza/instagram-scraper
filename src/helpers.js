@@ -6,7 +6,7 @@ const { PAGE_TYPES } = consts;
 
 /**
  * Takes object from _sharedData.entry_data and parses it into simpler object
- * @param {Object} entryData 
+ * @param {Object} entryData
  */
 const getItemSpec = (entryData) => {
     if (entryData.LocationsPage) {
@@ -66,21 +66,23 @@ const getLogLabel = (pageData) => {
         case PAGE_TYPES.PROFILE: return `User "${pageData.userUsername}"`;
         case PAGE_TYPES.HASHTAG: return `Tag "${pageData.tagName}"`;
         case PAGE_TYPES.POST: return `Post "${pageData.id}"`;
+        default: throw new Error('Not supported');
     }
-}
+};
 
 /**
  * Takes page type and outputs variable that must be present in graphql query
- * @param {String} pageType 
+ * @param {String} pageType
  */
 const getCheckedVariable = (pageType) => {
     switch (pageType) {
-        case PAGE_TYPES.PLACE: return `%22id%22`;
+        case PAGE_TYPES.PLACE: return '%22id%22';
         case PAGE_TYPES.PROFILE: return '%22id%22';
         case PAGE_TYPES.HASHTAG: return '%22tag_name%22';
         case PAGE_TYPES.POST: return '%22shortcode%22';
+        default: throw new Error('Not supported');
     }
-}
+};
 
 /**
  * Based on parsed data from current page saves a message into log with prefix identifying current page

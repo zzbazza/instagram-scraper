@@ -4,11 +4,14 @@
 	"description": "Crawls through instagram pages and stores posts, comments and details",
 	"main": "main.js",
 	"dependencies": {
-		"apify": "^0.13.7",
-		"request-promise-native": "^1.0.7"
+		"apify": "^0.20.2",
+		"request-promise-native": "^1.0.8",
+		"safe-eval": "^0.4.1",
+		"underscore": "^1.9.2"
 	},
 	"devDependencies": {
-		"eslint": "^5.16.0"
+		"@apify/eslint-config": "0.0.3",
+		"eslint": "^6.8.0"
 	},
 	"scripts": {
 		"start": "node main.js",

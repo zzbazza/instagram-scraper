@@ -55,6 +55,14 @@
             "unit": "per page",
             "default": 200
         },
+        "extendOutputFunction": {
+            "title": "Extend output function",
+            "type": "string",
+            "nullable": true,
+            "description": "Function that takes a JQuery handle ($) as argument and returns data that will be merged with the default output",
+            "prefill": "($) => { return {} }",
+            "editor": "javascript"
+        },
         "proxy": {
             "title": "Proxy configuration",
             "type": "object",

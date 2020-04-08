@@ -6,11 +6,11 @@ Since Instagram has removed the option to load public data through its API, this
 
 The Instagram data scraper supports the following features:
 
-- Scrape profiles - you can either scrape posts or get metadata from the profile
+- Scrape profiles - query profiles matched by search keyword and then you can either scrape posts or get metadata from each profile
 
-- Scrape hashtags - you can either scrape posts or scrape metadata from the hashtag
+- Scrape hashtags - query hastags matched by search keyword you can either scrape posts or scrape metadata from each hashtag
 
-- Scrape places - you can either scrape posts or scrape metadata from the place
+- Scrape places - query places matched by search keyword you can either scrape posts or scrape metadata from each place
 
 - Scrape comments - you can scrape comments from any post
 
@@ -37,10 +37,10 @@ The input of this scraper should be JSON containing the list of pages on Instagr
 | ----- | ---- | ----------- |
 | search | String | (optional) Query to search Instagram for |
 | searchType | String | (optional, required with search) What to search Instagram for, default is "hashtag", other options are "user" or "place"  |
-| searchLimit | String | (optional) How many search results to process, default is 20, maximum is 100  |
-| directUrls | Array | (optional) List of Instagram URLs |
+| searchLimit | Integer | (optional) How many search results to process, default is 20, maximum is 100. Set to 1 if you want to get the most matched one |
+| directUrls | Array | (optional) List of Instagram URLs (profile or hashtag or place) |
 | resultsType | String | What to scrape from each page, default is "posts" the other option is "comments" |
-| resultsLimit | Integer | How many items should be loaded from each URL (limit is per page)  |
+| resultsLimit | Integer | How many items should be loaded from each URL (limit is per page) |
 | proxy | Object | Proxy configuration |
 
 This solution requires the use of **Proxy servers**, either your own proxy servers or you can use <a href="https://www.apify.com/docs/proxy">Apify Proxy</a>.
@@ -349,3 +349,32 @@ In the future, this solution will be extended with following features
 
 - Scraping and download of Instagram photos
 - Scraping of Instagram stories
+
+## Compute units consumption
+Keep in mind that it is much more efficient to run one longer scrape (at least one minute) than more shorter ones because of the startup time.
+
+The average consumption is **1 Compute unit for 400 actor pages** scraped
+
+### Extend output function
+
+You can use this function to update the result output of this actor. You can query html dom what data from the page you want to scrape. The output from this will function will get merged with the result output.
+
+The return value of this function has to be an object!
+
+You can return fields to achive 3 different things:
+- Add a new field - Return object with a field that is not in the result output
+- Change a field - Return an existing field with a new value
+- Remove a field - Return an existing field with a value `undefined`
+
+
+```
+() => {
+    return {
+        "comment added": document.querySelector('time').textContent,
+        "caption": "NA",
+        displayResourceUrls: undefined
+    }
+}
+```
+This example will add a new field `comment added`, change the `caption` field and remove `displayResourceUrls` field
+```

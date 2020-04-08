@@ -12,11 +12,11 @@ const comments = {};
  * @param {Object} data GraphQL data
  */
 const getCommentsFromGraphQL = (data) => {
-    const timeline = data.shortcode_media.edge_media_to_comment;
-    const comments = timeline ? timeline.edges.reverse() : [];
+    const timeline = data.shortcode_media.edge_media_to_parent_comment;
+    const commentItems = timeline ? timeline.edges.reverse() : [];
     const hasNextPage = timeline ? timeline.page_info.has_next_page : false;
-    return { comments, hasNextPage };
-}
+    return { comments: commentItems, hasNextPage };
+};
 
 /**
  * Clicks on "Load more comments" button and waits till GraphQL response is received
@@ -30,45 +30,46 @@ const loadMore = async (pageData, page, retry = 0) => {
     const responsePromise = page.waitForResponse(
         (response) => {
             const responseUrl = response.url();
-            return responseUrl.startsWith(GRAPHQL_ENDPOINT) 
-                && responseUrl.includes(checkedVariable) 
-                && responseUrl.includes('%22first%22')
+            return responseUrl.startsWith(GRAPHQL_ENDPOINT)
+                && responseUrl.includes(checkedVariable)
+                && responseUrl.includes('%22first%22');
         },
-        { timeout: 20000 }
+        { timeout: 20000 },
     );
 
     let clicked;
     for (let i = 0; i < 10; i++) {
         clicked = await Promise.all([
-            page.click('article ul li button'),
+            page.click('[aria-label="Load more comments"]'),
             page.waitForRequest(
                 (request) => {
                     const requestUrl = request.url();
-                    return requestUrl.startsWith(GRAPHQL_ENDPOINT) 
-                        && requestUrl.includes(checkedVariable) 
-                        && requestUrl.includes('%22first%22')
-                }, 
+                    return requestUrl.startsWith(GRAPHQL_ENDPOINT)
+                        && requestUrl.includes(checkedVariable)
+                        && requestUrl.includes('%22first%22');
+                },
                 {
                     timeout: 1000,
-                }
+                },
             ).catch(() => null),
         ]);
         if (clicked[1]) break;
     }
 
     let data = null;
-    if (clicked[1]){
+    if (clicked[1]) {
         try {
             const response = await responsePromise;
             const json = await response.json();
-            if (json) data = json['data'];
+            // eslint-disable-next-line prefer-destructuring
+            if (json) data = json.data;
         } catch (error) {
             Apify.utils.log.error(error);
         }
     }
 
-    if (!data && retry < 10 && (scrolled[1] || retry < 5)) {
-        let retryDelay = retry ? ++retry * retry * 1000 : ++retry * 1000;
+    if (!data && retry < 10) {
+        const retryDelay = retry ? ++retry * retry * 1000 : ++retry * 1000;
         log(pageData, `Retry scroll after ${retryDelay / 1000} seconds`);
         await page.waitFor(retryDelay);
         return loadMore(pageData, page, retry);
@@ -80,10 +81,10 @@ const loadMore = async (pageData, page, retry = 0) => {
 
 /**
  * Loads data and clicks on "Load more comments" until the limit is reached or the page has no more comments
- * @param {Object} pageData 
- * @param {Object} page 
- * @param {Object} request 
- * @param {Number} length 
+ * @param {Object} pageData
+ * @param {Object} page
+ * @param {Object} request
+ * @param {Number} length
  */
 const finiteScroll = async (pageData, page, request, length = 0) => {
     const data = await loadMore(pageData, page);
@@ -93,7 +94,7 @@ const finiteScroll = async (pageData, page, request, length = 0) => {
     }
 
     if (comments[pageData.id].length < request.userData.limit && comments[pageData.id].length !== length) {
-        await finiteScroll(pageData, page, request, comments[pageData.id].length)
+        await finiteScroll(pageData, page, request, comments[pageData.id].length);
     }
 };
 
@@ -134,16 +135,16 @@ const scrapeComments = async (page, request, itemSpec, entryData) => {
         },
         id: item.node.id,
         text: item.node.text,
-        timestamp: new Date(parseInt(item.node.createdAt) * 1000),
-        ownerId: item.node.owner ? item.node.owner.id : null, 
-        ownerIsVerified: item.node.owner ? item.node.owner.is_verified : null, 
-        ownerUsername: item.node.owner ? item.node.owner.username : null, 
-        ownerProfilePicUrl: item.node.owner ? item.node.owner.profile_pic_url : null, 
+        timestamp: new Date(parseInt(item.node.created_at, 10) * 1000),
+        ownerId: item.node.owner ? item.node.owner.id : null,
+        ownerIsVerified: item.node.owner ? item.node.owner.is_verified : null,
+        ownerUsername: item.node.owner ? item.node.owner.username : null,
+        ownerProfilePicUrl: item.node.owner ? item.node.owner.profile_pic_url : null,
     })).slice(0, request.userData.limit);
 
     await Apify.pushData(output);
     log(itemSpec, `${output.length} items saved, task finished`);
-}
+};
 
 /**
  * Takes GraphQL response, checks that it's a response with more comments and then parses the comments from it
@@ -160,8 +161,8 @@ async function handleCommentsGraphQLResponse(page, response) {
     if (!responseUrl.includes(checkedVariable) || !responseUrl.includes('%22first%22')) return;
 
     const data = await response.json();
-    const timeline = getCommentsFromGraphQL(data['data']);
-    
+    const timeline = getCommentsFromGraphQL(data.data);
+
     comments[page.itemSpec.id] = comments[page.itemSpec.id].concat(timeline.comments);
 
     if (!initData[page.itemSpec.id]) initData[page.itemSpec.id] = timeline;

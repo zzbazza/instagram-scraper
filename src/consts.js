@@ -24,13 +24,13 @@ module.exports = {
     ABORTED_RESOUCE_TYPES: [
         // 'stylesheet',
         'image',
-        // 'media',
+        'media',
         'font',
         'texttrack',
         'fetch',
         'eventsource',
         'websocket',
         'manifest',
-        'other'
+        'other',
     ],
 };
