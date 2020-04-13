@@ -183,10 +183,12 @@ const scrapePosts = async (page, request, itemSpec, entryData, requestQueue) => 
 
     await page.waitFor(500);
 
-    const hasMostRecentPosts = await page.evaluate(() => document.querySelector('article > h2') !== null
-        && document.querySelector('article > h2').textContent === 'Most recent');
+    const hasMostRecentPostsOnHashtagPage = itemSpec.pageType === PAGE_TYPES.HASHTAG
+        ? await page.evaluate(() => document.querySelector('article > h2') !== null
+        && document.querySelector('article > h2').textContent === 'Most recent')
+        : true;
 
-    if (initData[itemSpec.id].hasNextPage && posts[itemSpec.id].length < request.userData.limit && hasMostRecentPosts) {
+    if (initData[itemSpec.id].hasNextPage && posts[itemSpec.id].length < request.userData.limit && hasMostRecentPostsOnHashtagPage) {
         await page.waitFor(1000);
         await finiteScroll(itemSpec, page, request, posts.length);
     }
