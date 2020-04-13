@@ -62,8 +62,13 @@ async function main() {
     const gotoFunction = async ({ request, page }) => {
         await page.setRequestInterception(true);
         page.on('request', (req) => {
-            if (ABORTED_RESOUCE_TYPES.includes(req.resourceType()) || req.url().includes('map_tile.php')
-                 || req.url().includes('logging_client_events')) return req.abort();
+            if (
+                ABORTED_RESOUCE_TYPES.includes(req.resourceType())
+                || req.url().includes('map_tile.php')
+                || req.url().includes('logging_client_events')
+            ) {
+                return req.abort();
+            }
 
             req.continue();
         });
@@ -134,7 +139,8 @@ async function main() {
         requestQueue,
         gotoFunction,
         puppeteerPoolOptions: {
-            maxOpenPagesPerInstance: 1,
+            maxOpenPagesPerInstance: 3,
+            retireInstanceAfterRequestCount: 30,
         },
         launchPuppeteerOptions: {
             ...proxy,

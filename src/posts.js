@@ -206,7 +206,8 @@ const scrapePosts = async (page, request, itemSpec, entryData, requestQueue) => 
         firstComment: item.node.edge_media_to_caption.edges[0] && item.node.edge_media_to_caption.edges[0].node.text,
         timestamp: new Date(parseInt(item.node.taken_at_timestamp, 10) * 1000),
         locationName: (item.node.location && item.node.location.name) || null,
-        locationId: (item.node.location && item.node.location.id) || null, // usable by appending https://www.instagram.com/explore/locations/ to see the location
+        // usable by appending https://www.instagram.com/explore/locations/ to see the location
+        locationId: (item.node.location && item.node.location.id) || null,
         ownerUsername: (item.node.owner && item.node.owner.username) || null,
     })).slice(0, request.userData.limit);
 
