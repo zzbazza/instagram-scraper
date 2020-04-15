@@ -141,7 +141,7 @@ const formatPostOutput = (request, data) => ({
     captionIsEdited: typeof data.caption_is_edited !== 'undefined' ? data.caption_is_edited : null,
     hasRankedComments: data.has_ranked_comments,
     commentsDisabled: data.comments_disabled,
-    displayResourceUrls: formatDisplayResources(data.edge_sidecar_to_children.edges),
+    displayResourceUrls: data.edge_sidecar_to_children ? formatDisplayResources(data.edge_sidecar_to_children.edges) : null,
     locationSlug: data.location ? data.location.slug : null,
     ownerUsername: data.owner ? data.owner.username : null,
     isAdvertisement: typeof data.is_ad !== 'undefined' ? data.is_ad : null,
