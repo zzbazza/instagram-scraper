@@ -99,7 +99,7 @@ async function main() {
     };
 
     const handlePageFunction = async ({ page, request, response }) => {
-        if (response.status === 404) {
+        if (response.status() === 404) {
             Apify.utils.log.info(`Page "${request.url}" does not exist.`);
             return;
         }
