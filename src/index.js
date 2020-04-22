@@ -140,7 +140,7 @@ async function main() {
         requestQueue,
         gotoFunction,
         puppeteerPoolOptions: {
-            maxOpenPagesPerInstance: 3,
+            maxOpenPagesPerInstance: 1,
             retireInstanceAfterRequestCount: 30,
         },
         launchPuppeteerOptions: {
