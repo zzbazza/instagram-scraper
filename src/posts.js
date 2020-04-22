@@ -75,6 +75,31 @@ const loadMore = async (pageData, page, retry = 0) => {
         { timeout: 20000 },
     ).catch(() => null);
 
+    let clicked;
+    for (let i = 0; i < 10; i++) {
+        const elements = await page.$x("//div[contains(text(), 'Show More Posts')]");
+        if (elements.length === 0) {
+            break;
+        }
+        const [button] = elements;
+
+        clicked = await Promise.all([
+            button.click(),
+            page.waitForRequest(
+                (request) => {
+                    const requestUrl = request.url();
+                    return requestUrl.startsWith(GRAPHQL_ENDPOINT)
+                        && requestUrl.includes(checkedVariable)
+                        && requestUrl.includes('%22first%22');
+                },
+                {
+                    timeout: 1000,
+                },
+            ).catch(() => null),
+        ]);
+        if (clicked[1]) break;
+    }
+
     let scrolled;
     for (let i = 0; i < 10; i++) {
         scrolled = await Promise.all([
@@ -183,10 +208,12 @@ const scrapePosts = async (page, request, itemSpec, entryData, requestQueue) => 
 
     await page.waitFor(500);
 
+    const hasTopPosts = await page.evaluate(() => document.querySelector('article > div > h2 > div') !== null
+        && document.querySelector('article > div > h2 > div').textContent === 'Top posts');
     const hasMostRecentPosts = await page.evaluate(() => document.querySelector('article > h2') !== null
         && document.querySelector('article > h2').textContent === 'Most recent');
 
-    if (initData[itemSpec.id].hasNextPage && posts[itemSpec.id].length < request.userData.limit && hasMostRecentPosts) {
+    if (initData[itemSpec.id].hasNextPage && posts[itemSpec.id].length < request.userData.limit && (!hasTopPosts || hasMostRecentPosts)) {
         await page.waitFor(1000);
         await finiteScroll(itemSpec, page, request, posts.length);
     }
