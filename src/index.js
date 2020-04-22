@@ -100,7 +100,7 @@ async function main() {
 
     const handlePageFunction = async ({ page, request }) => {
         // eslint-disable-next-line no-underscore-dangle
-        await page.waitFor(() => (!window.__initialData.pending && window.__initialData && window.__initialData.data), { timeout: 60000 });
+        await page.waitFor(() => (!window.__initialData.pending && window.__initialData && window.__initialData.data), { timeout: 30000 });
         // eslint-disable-next-line no-underscore-dangle
         const { pending, data } = await page.evaluate(() => window.__initialData);
         if (pending) throw new Error('Page took too long to load initial data, trying again.');
