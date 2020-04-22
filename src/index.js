@@ -61,6 +61,7 @@ async function main() {
 
     const gotoFunction = async ({ request, page }) => {
         await page.setRequestInterception(true);
+
         page.on('request', (req) => {
             if (
                 ABORTED_RESOUCE_TYPES.includes(req.resourceType())
@@ -87,13 +88,13 @@ async function main() {
                     .catch(error => Apify.utils.log.error(error));
                 case SCRAPE_TYPES.COMMENTS: return handleCommentsGraphQLResponse(page, response)
                     .catch(error => Apify.utils.log.error(error));
-                default: throw new Error('Not supported');
+                // no default
             }
         });
 
         return page.goto(request.url, {
             // itemSpec timeouts
-            timeout: 120 * 1000,
+            timeout: 60 * 1000,
         });
     };
 
