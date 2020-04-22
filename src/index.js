@@ -100,9 +100,13 @@ async function main() {
 
     const handlePageFunction = async ({ page, request }) => {
         // eslint-disable-next-line no-underscore-dangle
-        await page.waitFor(() => (window.__initialData && window.__initialData.data), { timeout: 60000 });
+        await page.waitFor(() => (!window.__initialData.pending && window.__initialData && window.__initialData.data), { timeout: 60000 });
         // eslint-disable-next-line no-underscore-dangle
-        const entryData = await page.evaluate(() => window.__initialData.data.entry_data);
+        const { pending, data } = await page.evaluate(() => window.__initialData);
+        if (pending) throw new Error('Page took too long to load initial data, trying again.');
+        if (!data || !data.entry_data) throw new Error('Page does not contain initial data, trying again.');
+        const { entry_data: entryData } = data;
+
         const itemSpec = getItemSpec(entryData);
 
         let userResult = {};
@@ -149,7 +153,7 @@ async function main() {
             stealth: true,
         },
         maxConcurrency: 100,
-        handlePageTimeoutSecs: 12 * 60 * 60,
+        handlePageTimeoutSecs: 12 * 60,
         handlePageFunction,
 
         // If request failed 4 times then this function is executed.
