@@ -53,6 +53,8 @@ const getItemSpec = (entryData) => {
         };
     }
 
+    log.info('unsupported page', entryData);
+
     throw errors.unsupportedPage();
 };
 
