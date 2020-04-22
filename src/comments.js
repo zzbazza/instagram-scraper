@@ -39,21 +39,25 @@ const loadMore = async (pageData, page, retry = 0) => {
 
     let clicked;
     for (let i = 0; i < 10; i++) {
-        clicked = await Promise.all([
-            page.click('[aria-label="Load more comments"]'),
-            page.waitForRequest(
-                (request) => {
-                    const requestUrl = request.url();
-                    return requestUrl.startsWith(GRAPHQL_ENDPOINT)
-                        && requestUrl.includes(checkedVariable)
-                        && requestUrl.includes('%22first%22');
-                },
-                {
-                    timeout: 1000,
-                },
-            ).catch(() => null),
-        ]);
-        if (clicked[1]) break;
+        try {
+            clicked = await Promise.all([
+                page.click('[aria-label="Load more comments"]'),
+                page.waitForRequest(
+                    (request) => {
+                        const requestUrl = request.url();
+                        return requestUrl.startsWith(GRAPHQL_ENDPOINT)
+                            && requestUrl.includes(checkedVariable)
+                            && requestUrl.includes('%22first%22');
+                    },
+                    {
+                        timeout: 1000,
+                    },
+                ).catch(() => null),
+            ]);
+            if (clicked[1]) break;
+        } catch (e) {
+            // ignored
+        }
     }
 
     let data = null;

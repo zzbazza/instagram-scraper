@@ -88,7 +88,7 @@ async function main() {
 
         return page.goto(request.url, {
             // itemSpec timeouts
-            timeout: 50 * 10000,
+            timeout: 120 * 1000,
         });
     };
 
