@@ -61,9 +61,15 @@ async function main() {
 
     const gotoFunction = async ({ request, page }) => {
         await page.setRequestInterception(true);
+
         page.on('request', (req) => {
-            if (ABORTED_RESOUCE_TYPES.includes(req.resourceType()) || req.url().includes('map_tile.php')
-                 || req.url().includes('logging_client_events')) return req.abort();
+            if (
+                ABORTED_RESOUCE_TYPES.includes(req.resourceType())
+                || req.url().includes('map_tile.php')
+                || req.url().includes('logging_client_events')
+            ) {
+                return req.abort();
+            }
 
             req.continue();
         });
@@ -82,21 +88,29 @@ async function main() {
                     .catch(error => Apify.utils.log.error(error));
                 case SCRAPE_TYPES.COMMENTS: return handleCommentsGraphQLResponse(page, response)
                     .catch(error => Apify.utils.log.error(error));
-                default: throw new Error('Not supported');
+                // no default
             }
         });
 
         return page.goto(request.url, {
             // itemSpec timeouts
-            timeout: 120 * 1000,
+            timeout: 60 * 1000,
         });
     };
 
-    const handlePageFunction = async ({ page, request }) => {
+    const handlePageFunction = async ({ page, request, response }) => {
+        if (response.status() === 404) {
+            Apify.utils.log.info(`Page "${request.url}" does not exist.`);
+            return;
+        }
         // eslint-disable-next-line no-underscore-dangle
-        await page.waitFor(() => (window.__initialData && window.__initialData.data), { timeout: 60000 });
+        await page.waitFor(() => (!window.__initialData.pending && window.__initialData && window.__initialData.data), { timeout: 20000 });
         // eslint-disable-next-line no-underscore-dangle
-        const entryData = await page.evaluate(() => window.__initialData.data.entry_data);
+        const { pending, data } = await page.evaluate(() => window.__initialData);
+        if (pending) throw new Error('Page took too long to load initial data, trying again.');
+        if (!data || !data.entry_data) throw new Error('Page does not contain initial data, trying again.');
+        const { entry_data: entryData } = data;
+
         const itemSpec = getItemSpec(entryData);
 
         let userResult = {};
@@ -135,6 +149,7 @@ async function main() {
         gotoFunction,
         puppeteerPoolOptions: {
             maxOpenPagesPerInstance: 1,
+            retireInstanceAfterRequestCount: 30,
         },
         launchPuppeteerOptions: {
             ...proxy,
@@ -142,7 +157,7 @@ async function main() {
             stealth: true,
         },
         maxConcurrency: 100,
-        handlePageTimeoutSecs: 12 * 60 * 60,
+        handlePageTimeoutSecs: 12 * 60,
         handlePageFunction,
 
         // If request failed 4 times then this function is executed.

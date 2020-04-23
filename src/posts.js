@@ -208,12 +208,12 @@ const scrapePosts = async (page, request, itemSpec, entryData, requestQueue) => 
 
     await page.waitFor(500);
 
-    const hasTopPosts = await page.evaluate(() => document.querySelector('article > div > h2 > div') !== null
-        && document.querySelector('article > div > h2 > div').textContent === 'Top posts');
-    const hasMostRecentPosts = await page.evaluate(() => document.querySelector('article > h2') !== null
-        && document.querySelector('article > h2').textContent === 'Most recent');
+    const hasMostRecentPostsOnHashtagPage = itemSpec.pageType === PAGE_TYPES.HASHTAG
+        ? await page.evaluate(() => document.querySelector('article > h2') !== null
+        && document.querySelector('article > h2').textContent === 'Most recent')
+        : true;
 
-    if (initData[itemSpec.id].hasNextPage && posts[itemSpec.id].length < request.userData.limit && (!hasTopPosts || hasMostRecentPosts)) {
+    if (initData[itemSpec.id].hasNextPage && posts[itemSpec.id].length < request.userData.limit && hasMostRecentPostsOnHashtagPage) {
         await page.waitFor(1000);
         await finiteScroll(itemSpec, page, request, posts.length);
     }
@@ -233,6 +233,8 @@ const scrapePosts = async (page, request, itemSpec, entryData, requestQueue) => 
         firstComment: item.node.edge_media_to_caption.edges[0] && item.node.edge_media_to_caption.edges[0].node.text,
         timestamp: new Date(parseInt(item.node.taken_at_timestamp, 10) * 1000),
         locationName: (item.node.location && item.node.location.name) || null,
+        // usable by appending https://www.instagram.com/explore/locations/ to see the location
+        locationId: (item.node.location && item.node.location.id) || null,
         ownerUsername: (item.node.owner && item.node.owner.username) || null,
     })).slice(0, request.userData.limit);
 
