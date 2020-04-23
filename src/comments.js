@@ -34,7 +34,7 @@ const loadMore = async (pageData, page, retry = 0) => {
                 && responseUrl.includes(checkedVariable)
                 && responseUrl.includes('%22first%22');
         },
-        { timeout: 30000 },
+        { timeout: 100000 },
     );
 
     let clicked = [];
