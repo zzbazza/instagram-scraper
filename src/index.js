@@ -157,7 +157,7 @@ async function main() {
             stealth: true,
         },
         maxConcurrency: 100,
-        handlePageTimeoutSecs: 12 * 60,
+        handlePageTimeoutSecs: 300 * 60, // Ex: 5 hours to crawl thousands of comments
         handlePageFunction,
 
         // If request failed 4 times then this function is executed.

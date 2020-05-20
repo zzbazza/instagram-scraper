@@ -34,13 +34,20 @@ const loadMore = async (pageData, page, retry = 0) => {
                 && responseUrl.includes(checkedVariable)
                 && responseUrl.includes('%22first%22');
         },
-        { timeout: 20000 },
+        { timeout: 100000 },
     );
 
-    let clicked;
+    let clicked = [];
     for (let i = 0; i < 10; i++) {
+        const elements = await page.$$('[aria-label="Load more comments"]');
+        if (elements.length === 0) {
+            break;
+        }
+
+        const [button] = elements;
+
         clicked = await Promise.all([
-            page.click('[aria-label="Load more comments"]'),
+            button.click(),
             page.waitForRequest(
                 (request) => {
                     const requestUrl = request.url();
