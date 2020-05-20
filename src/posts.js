@@ -18,7 +18,7 @@ const getPostsFromGraphQL = (pageType, data) => {
             timeline = data.location.edge_location_to_media;
             break;
         case PAGE_TYPES.PROFILE:
-            timeline = data.user.edge_owner_to_timeline_media;
+            timeline = data && data.user && data.user.edge_owner_to_timeline_media;
             break;
         case PAGE_TYPES.HASHTAG:
             timeline = data.hashtag.edge_hashtag_to_media;

@@ -8,7 +8,7 @@ const { scrapeComments, handleCommentsGraphQLResponse } = require('./comments');
 const { scrapeDetails } = require('./details');
 const { searchUrls } = require('./search');
 const { getItemSpec } = require('./helpers');
-const { GRAPHQL_ENDPOINT, ABORTED_RESOUCE_TYPES, SCRAPE_TYPES } = require('./consts');
+const { GRAPHQL_ENDPOINT, ABORTED_RESOURCE_TYPES, SCRAPE_TYPES } = require('./consts');
 const errors = require('./errors');
 
 async function main() {
@@ -64,7 +64,7 @@ async function main() {
 
         page.on('request', (req) => {
             if (
-                ABORTED_RESOUCE_TYPES.includes(req.resourceType())
+                ABORTED_RESOURCE_TYPES.includes(req.resourceType())
                 || req.url().includes('map_tile.php')
                 || req.url().includes('logging_client_events')
             ) {
