@@ -206,10 +206,25 @@ async function singleQuery(queryId, variables, nodeTransformationFunc, page, inp
     return query(gotParams, searchParams, nodeTransformationFunc, itemSpec, logPrefix);
 }
 
+function parseExtendOutputFunction (extendOutputFunction) {
+    const parsedExtendOutputFunction
+    if (typeof extendOutputFunction === 'string' && extendOutputFunction.trim() !== '') {
+        try {
+            parsedExtendOutputFunction = safeEval(input.extendOutputFunction);
+        } catch (e) {
+            throw new Error(`'extendOutputFunction' is not valid Javascript! Error: ${e}`);
+        }
+        if (typeof parsedExtendOutputFunction !== 'function') {
+            throw new Error('extendOutputFunction is not a function! Please fix it or use just default ouput!');
+        }
+    }
+}
+
 module.exports = {
     getItemSpec,
     getCheckedVariable,
     log,
     finiteQuery,
     singleQuery,
+    parseExtendOutputFunction,
 };

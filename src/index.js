@@ -8,26 +8,23 @@ const { scrapePosts, handlePostsGraphQLResponse, scrapePost } = require('./posts
 const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments');
 const { scrapeDetails }  = require('./details');
 const { searchUrls } = require('./search');
-const { getItemSpec } = require('./helpers');
+const { getItemSpec, parseExtendOutputFunction } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORTED_RESOURCE_TYPES, SCRAPE_TYPES } = require('./consts');
 const { initQueryIds } = require('./query_ids');
 const errors = require('./errors');
 
 async function main() {
     const input = await Apify.getInput();
-    const { proxy, resultsType, resultsLimit = 200, maxRequestRetries } = input;
+    const {
+        proxy,
+        resultsType,
+        resultsLimit = 200,
+        maxRequestRetries,
+        loginCookies,
+        directUrls,
+    } = input;
 
-    let extendOutputFunction;
-    if (typeof input.extendOutputFunction === 'string' && input.extendOutputFunction.trim() !== '') {
-        try {
-            extendOutputFunction = safeEval(input.extendOutputFunction);
-        } catch (e) {
-            throw new Error(`'extendOutputFunction' is not valid Javascript! Error: ${e}`);
-        }
-        if (typeof extendOutputFunction !== 'function') {
-            throw new Error('extendOutputFunction is not a function! Please fix it or use just default ouput!');
-        }
-    }
+    const extendOutputFunction = parseExtendOutputFunction(input.extendOutputFunction);
 
     if (proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
 
@@ -35,18 +32,18 @@ async function main() {
 
     let maxConcurrency = 1000;
 
-    const usingLogin = input.loginCookies && Array.isArray(input.loginCookies);
+    const usingLogin = loginCookies && Array.isArray(loginCookies);
 
     if (usingLogin) {
         await Apify.utils.log.warning('Cookies were used, setting maxConcurrency to 1 and using one proxy session!');
         maxConcurrency = 1;
-        const session = crypto.createHash('sha256').update(JSON.stringify(input.loginCookies)).digest('hex').substring(0,16)
+        const session = crypto.createHash('sha256').update(JSON.stringify(loginCookies)).digest('hex').substring(0,16)
         if (proxy.useApifyProxy) proxy.apifyProxySession = `insta_session_${session}`;
     }
 
     const foundUrls = await searchUrls(input);
     const urls = [
-        ...(input.directUrls || []),
+        ...(directUrls || []),
         ...foundUrls,
     ];
 
@@ -76,7 +73,7 @@ async function main() {
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
 
-    let cookies = input.loginCookies;
+    let cookies = loginCookies;
 
     const gotoFunction = async ({ request, page }) => {
         await page.setBypassCSP(true);
