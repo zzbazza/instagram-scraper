@@ -98,7 +98,7 @@ async function main() {
         });
     };
 
-    const handlePageFunction = async ({ page, request, response }) => {
+    const handlePageFunction = async ({ page, puppeteerPool, request, response }) => {
         if (response.status() === 404) {
             Apify.utils.log.info(`Page "${request.url}" does not exist.`);
             return;
@@ -110,6 +110,12 @@ async function main() {
         if (pending) throw new Error('Page took too long to load initial data, trying again.');
         if (!data || !data.entry_data) throw new Error('Page does not contain initial data, trying again.');
         const { entry_data: entryData } = data;
+
+        if (entryData.LoginAndSignupPage) {
+            log.info('Got sent to the login page, retiring this browser');
+            await puppeteerPool.retire(page.browser());
+            throw errors.unsupportedPage();
+        }
 
         const itemSpec = getItemSpec(entryData);
 
