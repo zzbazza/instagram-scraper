@@ -21,7 +21,7 @@ async function main() {
         resultsLimit = 200,
         maxRequestRetries,
         loginCookies,
-        directUrls,
+        directUrls = [],
     } = input;
 
     const extendOutputFunction = parseExtendOutputFunction(input.extendOutputFunction);
@@ -41,11 +41,12 @@ async function main() {
         if (proxy.useApifyProxy) proxy.apifyProxySession = `insta_session_${session}`;
     }
 
-    const foundUrls = await searchUrls(input);
-    const urls = [
-        ...(directUrls || []),
-        ...foundUrls,
-    ];
+    let urls;
+    if (directUrls) {
+        urls = directUrls;
+    } else {
+        urls = await searchUrls(input);
+    }
 
     if (urls.length === 0) {
         Apify.utils.log.info('No URLs to process');

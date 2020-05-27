@@ -45,7 +45,7 @@
             "editor": "select",
             "enum": ["posts", "comments", "details"],
             "enumTitles": [
-                "Posts (from profile pages or hashtag searh)",
+                "Posts (from profile pages, hashtag or place search)",
                 "Comments (from post pages)",
                 "Details (of profiles or posts - from profile or post pages)"],
             "default": "posts"
