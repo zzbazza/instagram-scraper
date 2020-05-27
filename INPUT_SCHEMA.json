@@ -39,9 +39,9 @@
             "uniqueItems": true
         },
         "resultsType": {
-            "title": "What to scrape from each page. You need to provide correct parent pages, e.g. comments can be scraped only from posts, not profiles.",
+            "title": "What to scrape from each page.",
             "type": "string",
-            "description": "What to scrape from each Instagram page URL or search result",
+            "description": "What to scrape from each Instagram page URL or search result.  You need to provide correct parent pages, e.g. comments can be scraped only from posts, not from profiles.",
             "editor": "select",
             "enum": ["posts", "comments", "details"],
             "enumTitles": [
