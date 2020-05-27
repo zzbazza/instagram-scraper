@@ -207,7 +207,7 @@ async function singleQuery(queryId, variables, nodeTransformationFunc, page, inp
 }
 
 function parseExtendOutputFunction (extendOutputFunction) {
-    const parsedExtendOutputFunction
+    let parsedExtendOutputFunction;
     if (typeof extendOutputFunction === 'string' && extendOutputFunction.trim() !== '') {
         try {
             parsedExtendOutputFunction = safeEval(input.extendOutputFunction);
