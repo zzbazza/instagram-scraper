@@ -42,7 +42,7 @@ async function main() {
     }
 
     let urls;
-    if (directUrls) {
+    if (Array.isArray(directUrls) && directUrls.length > 0) {
         urls = directUrls;
     } else {
         urls = await searchUrls(input);
