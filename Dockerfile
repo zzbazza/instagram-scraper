@@ -15,4 +15,4 @@ RUN npm --quiet set progress=false \
 
 # By default, the apify/actor-node-chrome image uses "npm start" to run the code.
 # You can override this behavior using the CMD instruction here:
-# CMD [ "npm", "start" ]
+CMD [ "npm", "start", "--silent" ]
