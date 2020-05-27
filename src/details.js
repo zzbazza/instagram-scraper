@@ -145,7 +145,7 @@ const formatHashtagOutput = (request, data) => ({
 });
 
 // Formats data from window._shared_data.entry_data.PostPage[0].graphql.shortcode_media to nicer output
-const formatPostOutput = (input, request, data, page, itemSpec) => {
+const formatPostOutput = async (input, request, data, page, itemSpec) => {
     const likedBy = await getPostLikes(page, itemSpec, input);
     return {
         '#debug': Apify.utils.createRequestDebugInfo(request),
@@ -169,19 +169,19 @@ const formatPostOutput = (input, request, data, page, itemSpec) => {
 
 // Finds correct variable in window._shared_data.entry_data based on pageType
 // Finds correct variable in window._shared_data.entry_data based on pageType
-const getOutputFromEntryData = (input, itemSpec, request, data, page) => {
+const getOutputFromEntryData = async ({ input, itemSpec, request, entryData, page, proxy, userResult }) => {
     switch (itemSpec.pageType) {
-        case PAGE_TYPES.PLACE: return formatPlaceOutput(request, data.LocationsPage[0].graphql.location, page, itemSpec, userResult);
-        case PAGE_TYPES.PROFILE: return formatProfileOutput(input, request, data.ProfilePage[0].graphql.user, page, itemSpec, userResult);
-        case PAGE_TYPES.HASHTAG: return formatHashtagOutput(request, data.TagPage[0].graphql.hashtag, page, itemSpec, userResult);
-        case PAGE_TYPES.POST: return formatPostOutput(input, request, data.PostPage[0].graphql.shortcode_media, page, itemSpec, userResult);
+        case PAGE_TYPES.PLACE: return formatPlaceOutput(request, entryData.LocationsPage[0].graphql.location, page, itemSpec, userResult);
+        case PAGE_TYPES.PROFILE: return formatProfileOutput(input, request, entryData.ProfilePage[0].graphql.user, page, itemSpec, userResult);
+        case PAGE_TYPES.HASHTAG: return formatHashtagOutput(request, entryData.TagPage[0].graphql.hashtag, page, itemSpec, userResult);
+        case PAGE_TYPES.POST: return await formatPostOutput(input, request, entryData.PostPage[0].graphql.shortcode_media, page, itemSpec, userResult);
         default: throw new Error('Not supported');
     }
 };
 
 // Takes correct variable from window object and formats it into proper output
-const scrapeDetails = async (input, request, itemSpec, entryData, page, proxy) => {
-    const output = await getOutputFromEntryData(input, itemSpec, request, entryData, page, proxy, userResult);
+const scrapeDetails = async ({ input, request, itemSpec, entryData, page, proxy, userResult }) => {
+    const output = await getOutputFromEntryData({ input, itemSpec, request, entryData, page, proxy, userResult });
     _.extend(output, userResult);
     await Apify.pushData(output);
     log(itemSpec, 'Page details saved, task finished');

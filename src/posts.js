@@ -197,7 +197,7 @@ const scrapePost = (request, itemSpec, entryData) => {
  * @param {Object} entryData data from window._shared_data.entry_data
  * @param {Object} input Input provided by user
  */
-const scrapePosts = async (page, request, itemSpec, entryData, requestQueue) => {
+const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, input }) => {
     const timeline = getPostsFromEntryData(itemSpec.pageType, entryData);
     initData[itemSpec.id] = timeline;
 
@@ -226,7 +226,7 @@ const scrapePosts = async (page, request, itemSpec, entryData, requestQueue) => 
     if (itemSpec.userUsername) filteredItemSpec.queryUsername = itemSpec.userUsername;
     if (itemSpec.locationName) filteredItemSpec.queryLocation = itemSpec.locationName;
 
-    const output = posts[itemSpec.id].map(item => ({
+    let output = posts[itemSpec.id].map(item => ({
         '#debug': {
             ...Apify.utils.createRequestDebugInfo(request),
             ...itemSpec,
@@ -290,8 +290,9 @@ async function handlePostsGraphQLResponse(page, response) {
         initData[page.itemSpec.id].hasNextPage = false;
     }
 
-    await Apify.pushData(output);
-    log(itemSpec, `${output.length} items saved, task finished`);
+    // await Apify.pushData(output);
+    // log(itemSpec, `${output.length} items saved, task finished`);
+    log(page.itemSpec, `${timeline.posts.length} items added, ${posts[page.itemSpec.id].length} items total`);
 }
 
 module.exports = {

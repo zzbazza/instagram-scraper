@@ -15,7 +15,7 @@ const errors = require('./errors');
 
 async function main() {
     const input = await Apify.getInput();
-    const { proxy, resultsType, resultsLimit = 200 } = input;
+    const { proxy, resultsType, resultsLimit = 200, maxRequestRetries } = input;
 
     let extendOutputFunction;
     if (typeof input.extendOutputFunction === 'string' && input.extendOutputFunction.trim() !== '') {
@@ -133,7 +133,6 @@ async function main() {
                 process.exit(1);
             }
         }
-
         return response;
     };
 
@@ -151,9 +150,8 @@ async function main() {
         const { entry_data: entryData } = data;
 
         if (entryData.LoginAndSignupPage) {
-            log.info('Got sent to the login page, retiring this browser');
             await puppeteerPool.retire(page.browser());
-            throw errors.unsupportedPage();
+            throw errors.redirectedToLogin();
         }
 
         const itemSpec = getItemSpec(entryData);
@@ -176,9 +174,9 @@ async function main() {
             page.itemSpec = itemSpec;
 
             switch (resultsType) {
-                case SCRAPE_TYPES.POSTS: return scrapePosts(page, request, itemSpec, entryData, requestQueue);
+                case SCRAPE_TYPES.POSTS: return scrapePosts({ page, request, itemSpec, entryData, requestQueue, input });
                 case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec, entryData);
-                case SCRAPE_TYPES.DETAILS: return scrapeDetails(request, itemSpec, entryData, userResult);
+                case SCRAPE_TYPES.DETAILS: return scrapeDetails({ input, request, request, itemSpec, entryData, page, proxy, userResult });
                 default: throw new Error('Not supported');
             }
         }
@@ -192,14 +190,15 @@ async function main() {
         requestList,
         requestQueue,
         gotoFunction,
+        maxRequestRetries,
         puppeteerPoolOptions: {
             maxOpenPagesPerInstance: 1,
             retireInstanceAfterRequestCount: 30,
         },
         launchPuppeteerOptions: {
             ...proxy,
-            headless: true,
             stealth: true,
+            useChrome: true,
             ignoreHTTPSErrors: true,
             args: ['--enable-features=NetworkService', '--ignore-certificate-errors'],
         },
