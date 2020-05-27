@@ -69,6 +69,48 @@
             "description": "<strong>Proxy is required to run this actor!</strong> Either use Apify proxy, or provide your own proxy servers.",
             "prefill": { "useApifyProxy": true, "apifyProxyGroups": [] },
             "editor": "proxy"
+        },
+        "loginCookies": {
+            "title": "Cookies",
+            "type": "array",
+            "description": "If you want to sign in to instagram to have access to more data than on anonymous profile, but do not wish to have your credentials in input, then you can use your cookies.",
+            "editor": "json",
+            "sectionCaption": "Login using cookies",
+            "sectionDescription": "Instagram limits access to certain data (likes, post user data, followers and others) if user is anonymous. You can provide you cookies here (copied from chrome plugin like 'EditThisCookie' to use a normal account. Do not use your own cookies here and rather create a new temporary account. When cookies are used, the run is limited to concurrency 1 and one session, so that the account does not get banned too soon."
+        },
+        "likedByLimits": {
+            "title": "Get post likes",
+            "type": "integer",
+            "description": "If this limit is set above 0, then the solution will attempt to load additional details about users who liked the post.",
+            "editor": "number",
+            "unit": "likes",
+            "default": 0,
+            "sectionCaption": "Additional data loaded from detail pages",
+            "sectionDescription": "If limits in this section are set above 0, then when the solution enters a page, it attempts to load the specified items until limit is reached. All of the options below require login credentials."
+        },
+        "followingLimit": {
+            "title": "Get profile following",
+            "type": "integer",
+            "description": "If this limit is set above 0, then the solution will attempt to find users who the profile owner is following.",
+            "editor": "number",
+            "unit": "users",
+            "default": 0
+        },
+        "followedByLimit": {
+            "title": "Get profile followed by",
+            "type": "integer",
+            "description": "If this limit is set above 0, then the solution will attempt to find users who the profile owner is followed by.",
+            "editor": "number",
+            "unit": "users",
+            "default": 0
+        },
+        "expandOwners": {
+            "title": "Query post owner",
+            "type": "boolean",
+            "description": "If this feature is used, then for each post the solution will attempt to query additional details about it's owner. This will drastically slow down crawling speed and increase chance of an account ban if credentials are provided.",
+            "editor": "checkbox",
+            "sectionCaption": "Experimental features",
+            "sectionDescription": "Features in this section are highly experimental, can result in ban of account if logged in and might cause the solution to fail."
         }
     },
     "required": ["proxy"]

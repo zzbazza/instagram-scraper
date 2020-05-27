@@ -1,6 +1,8 @@
 const Apify = require('apify');
 const { getCheckedVariable, log } = require('./helpers');
 const { PAGE_TYPES, GRAPHQL_ENDPOINT } = require('./consts');
+const { expandOwnerDetails } = require('./user_details');
+const { getPosts } = require('./posts_graphql');
 
 const initData = {};
 const posts = {};
@@ -193,6 +195,7 @@ const scrapePost = (request, itemSpec, entryData) => {
  * @param {Object} request Apify Request object
  * @param {Object} itemSpec Parsed page data
  * @param {Object} entryData data from window._shared_data.entry_data
+ * @param {Object} input Input provided by user
  */
 const scrapePosts = async (page, request, itemSpec, entryData, requestQueue) => {
     const timeline = getPostsFromEntryData(itemSpec.pageType, entryData);
@@ -218,6 +221,11 @@ const scrapePosts = async (page, request, itemSpec, entryData, requestQueue) => 
         await finiteScroll(itemSpec, page, request, posts.length);
     }
 
+    const filteredItemSpec = {};
+    if (itemSpec.tagName) filteredItemSpec.queryTag = itemSpec.tagName;
+    if (itemSpec.userUsername) filteredItemSpec.queryUsername = itemSpec.userUsername;
+    if (itemSpec.locationName) filteredItemSpec.queryLocation = itemSpec.locationName;
+
     const output = posts[itemSpec.id].map(item => ({
         '#debug': {
             ...Apify.utils.createRequestDebugInfo(request),
@@ -226,6 +234,7 @@ const scrapePosts = async (page, request, itemSpec, entryData, requestQueue) => 
             postLocationId: (item.node.location && item.node.location.id) || null,
             postOwnerId: (item.node.owner && item.node.owner.id) || null,
         },
+        ...filteredItemSpec,
         alt: item.node.accessibility_caption,
         url: `https://www.instagram.com/p/${item.node.shortcode}`,
         likesCount: item.node.edge_media_preview_like.count,
@@ -235,8 +244,13 @@ const scrapePosts = async (page, request, itemSpec, entryData, requestQueue) => 
         locationName: (item.node.location && item.node.location.name) || null,
         // usable by appending https://www.instagram.com/explore/locations/ to see the location
         locationId: (item.node.location && item.node.location.id) || null,
+        ownerId: item.owner && item.owner.id || null,
         ownerUsername: (item.node.owner && item.node.owner.username) || null,
     })).slice(0, request.userData.limit);
+
+    if (input.expandOwners && itemSpec.pageType !== PAGE_TYPES.PROFILE) {
+        output = await expandOwnerDetails(output, page, input, itemSpec);
+    }
 
     for (const post of output) {
         if (itemSpec.pageType !== PAGE_TYPES.PROFILE && (post.locationName === null || post.ownerUsername === null)) {
@@ -276,7 +290,8 @@ async function handlePostsGraphQLResponse(page, response) {
         initData[page.itemSpec.id].hasNextPage = false;
     }
 
-    log(page.itemSpec, `${timeline.posts.length} items added, ${posts[page.itemSpec.id].length} items total`);
+    await Apify.pushData(output);
+    log(itemSpec, `${output.length} items saved, task finished`);
 }
 
 module.exports = {

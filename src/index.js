@@ -3,12 +3,14 @@ const safeEval = require('safe-eval');
 const _ = require('underscore');
 
 const { log } = Apify.utils;
+const crypto = require('crypto');
 const { scrapePosts, handlePostsGraphQLResponse, scrapePost } = require('./posts');
-const { scrapeComments, handleCommentsGraphQLResponse } = require('./comments');
-const { scrapeDetails } = require('./details');
+const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments');
+const { scrapeDetails }  = require('./details');
 const { searchUrls } = require('./search');
 const { getItemSpec } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORTED_RESOURCE_TYPES, SCRAPE_TYPES } = require('./consts');
+const { initQueryIds } = require('./query_ids');
 const errors = require('./errors');
 
 async function main() {
@@ -25,6 +27,21 @@ async function main() {
         if (typeof extendOutputFunction !== 'function') {
             throw new Error('extendOutputFunction is not a function! Please fix it or use just default ouput!');
         }
+    }
+
+    if (proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
+
+    await initQueryIds();
+
+    let maxConcurrency = 1000;
+
+    const usingLogin = input.loginCookies && Array.isArray(input.loginCookies);
+
+    if (usingLogin) {
+        await Apify.utils.log.warning('Cookies were used, setting maxConcurrency to 1 and using one proxy session!');
+        maxConcurrency = 1;
+        const session = crypto.createHash('sha256').update(JSON.stringify(input.loginCookies)).digest('hex').substring(0,16)
+        if (proxy.useApifyProxy) proxy.apifyProxySession = `insta_session_${session}`;
     }
 
     const foundUrls = await searchUrls(input);
@@ -59,7 +76,17 @@ async function main() {
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
 
+    let cookies = input.loginCookies;
+
     const gotoFunction = async ({ request, page }) => {
+        await page.setBypassCSP(true);
+        if (cookies && Array.isArray(cookies)) {
+            await page.setCookie(...cookies);
+        } else if (input.loginUsername && input.loginPassword) {
+            await login(input.loginUsername, input.loginPassword, page)
+            cookies = await page.cookies();
+        };
+
         await page.setRequestInterception(true);
 
         page.on('request', (req) => {
@@ -92,10 +119,22 @@ async function main() {
             }
         });
 
-        return page.goto(request.url, {
+        const response = await page.goto(request.url, {
             // itemSpec timeouts
             timeout: 60 * 1000,
         });
+
+        if (usingLogin) {
+            try {
+                const viewerId = await page.evaluate(() => window._sharedData.config.viewerId);
+                if (!viewerId) throw new Error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
+            } catch (loginError) {
+                await Apify.utils.log.error(loginError.message);
+                process.exit(1);
+            }
+        }
+
+        return response;
     };
 
     const handlePageFunction = async ({ page, puppeteerPool, request, response }) => {

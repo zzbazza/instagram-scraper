@@ -1,4 +1,8 @@
 const Apify = require('apify');
+const tunnel = require('tunnel');
+const { CookieJar } = require('tough-cookie')
+const got = require('got');
+const { URLSearchParams } = require('url');
 const errors = require('./errors');
 const consts = require('./consts');
 
@@ -96,8 +100,116 @@ const log = (pageData, message) => {
     return Apify.utils.log.info(`${label}: ${message}`);
 };
 
+const grapqlEndpoint = 'https://www.instagram.com/graphql/query/';
+
+async function getGotParams(page, input) {
+    let proxyConfig = { ...input.proxy };
+
+    const userAgent = await page.browser().userAgent();
+
+    let proxyUrl = null;
+    if (proxyConfig.useApifyProxy) {
+        proxyUrl = Apify.getApifyProxyUrl({
+            groups: proxyConfig.apifyProxyGroups || [],
+            session: proxyConfig.apifyProxySession || `insta_session_${Date.now()}`,
+        });
+    } else {
+        const randomUrlIndex = Math.round(Math.random() * proxyConfig.proxyUrls.length);
+        proxyUrl = proxyConfig.proxyUrls[randomUrlIndex];
+    }
+
+    const proxyUrlParts = proxyUrl.match(/http:\/\/(.*)@(.*)\/?/);
+    if (!proxyUrlParts) return posts;
+
+    const proxyHost = proxyUrlParts[2].split(':');
+    proxyConfig = {
+        hostname: proxyHost[0],
+        proxyAuth: proxyUrlParts[1],
+    }
+    if (proxyHost[1]) proxyConfig.port = proxyHost[1];
+
+    const agent = tunnel.httpsOverHttp({
+        proxy: proxyConfig,
+    });
+
+    const cookies = await page.cookies();
+    const cookieJar = new CookieJar();
+    cookies.forEach((cookie) => {
+        if (cookie.name === 'urlgen') return;
+        cookieJar.setCookieSync(`${cookie.name}=${cookie.value}`, 'https://www.instagram.com/', { http: true, secure: true });
+    });
+
+    return {
+        agent,
+        cookieJar,
+        headers: {
+            'user-agent': userAgent,
+        },
+        json: true,
+    }
+}
+
+async function query(gotParams, searchParams, nodeTransformationFunc, itemSpec, logPrefix) {
+    let retries = 0;
+    while (retries < 10) {
+        try {
+            const { body } = await got(`${grapqlEndpoint}?${searchParams.toString()}`, gotParams);
+            if (!body.data) throw new Error(`${logPrefix} - GraphQL query does not contain data`);
+            return nodeTransformationFunc(body.data);
+        } catch (error) {
+            if (error.message.includes(429)) {
+                log(itemSpec, `${logPrefix} - Encountered rate limit error, waiting ${(retries + 1) * 10} seconds.`);
+                await Apify.utils.sleep((retries + 1) * 10000);
+            } else await Apify.utils.log.error(error);
+            retries++;
+        }
+    }
+    log(itemSpec, `${logPrefix} - Could not load more items`);
+    return { nextPageCursor: null, data: [] };
+}
+
+async function finiteQuery(queryId, variables, nodeTransformationFunc, limit, page, input, itemSpec, logPrefix) {
+    const gotParams = await getGotParams(page, input);
+
+    log(itemSpec, `${logPrefix} - Loading up to ${limit} items`);
+    let hasNextPage = true;
+    let endCursor = null;
+    let results = [];
+    while (hasNextPage && results.length < limit) {
+        const queryParams = {
+            query_hash: queryId,
+            variables: {
+                ...variables,
+                first: 50,
+            }
+        };
+        if (endCursor) queryParams.variables.after = endCursor;
+        const searchParams = new URLSearchParams([['query_hash', queryParams.query_hash], ['variables', JSON.stringify(queryParams.variables)]]);
+        const { nextPageCursor, data } = await query(gotParams, searchParams, nodeTransformationFunc, itemSpec, logPrefix);
+
+        data.forEach((result) => results.push(result));
+
+        if (nextPageCursor && results.length < limit) {
+            endCursor = nextPageCursor;
+            log(itemSpec, `${logPrefix} - So far loaded ${results.length} items`);
+        } else {
+            hasNextPage = false;
+        }
+    }
+    log(itemSpec, `${logPrefix} - Finished loading ${results.length} items`);
+    return results.slice(0, limit);
+}
+
+async function singleQuery(queryId, variables, nodeTransformationFunc, page, input, itemSpec, logPrefix) {
+    const gotParams = await getGotParams(page, input);
+    const searchParams = new URLSearchParams([['query_hash', queryId], ['variables', JSON.stringify(variables)]]);
+    return query(gotParams, searchParams, nodeTransformationFunc, itemSpec, logPrefix);
+}
+
 module.exports = {
     getItemSpec,
     getCheckedVariable,
     log,
+    finiteQuery,
+    singleQuery,
 };
