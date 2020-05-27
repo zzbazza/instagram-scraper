@@ -23,7 +23,7 @@
         "searchLimit": {
             "title": "Search results limit",
             "type": "integer",
-            "description": "How many search results (eq. pages) should be processed",
+            "description": "How many search results (eq. pages) should be processed.",
             "editor": "number",
             "default": 10,
             "minimum": 1,
@@ -47,13 +47,13 @@
             "enumTitles": [
                 "Posts (from profile pages, hashtag or place search)",
                 "Comments (from post pages)",
-                "Details (of profiles or posts - from profile or post pages)"],
+                "Details (of profiles, posts or search pages - from profile, post or search pages)"],
             "default": "posts"
         },
         "resultsLimit": {
             "title": "Max items",
             "type": "integer",
-            "description": "How many posts or comments to scrape from each Instagram URL or found page, ignored when \"Details\" type is specified",
+            "description": "How many posts or comments to scrape from each Instagram URL or found page, ignored when \"Details\" type is specified. Notice that if you use search via hashtags or place, each found page will have this limit separately. You can limit searchLimit to reduce the number of total results.",
             "editor": "number",
             "unit": "per page",
             "default": 200

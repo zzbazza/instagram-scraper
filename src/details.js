@@ -1,7 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 const Apify = require('apify');
 const _ = require('underscore');
-const { log } = require('./helpers');
+const { log, parseCaption } = require('./helpers');
 const { PAGE_TYPES } = require('./consts');
 const { getPostLikes } = require('./likes');
 const { getProfileFollowedBy } = require('./followed_by');
@@ -36,11 +36,15 @@ const formatDisplayResources = (resources) => {
 const formatSinglePost = (node) => {
     const comments = node.edge_media_to_comment || node.edge_media_to_parent_comment || node.edge_media_preview_comment;
     const likes = node.edge_liked_by || node.edge_media_preview_like;
+    const caption = (node.edge_media_to_caption && node.edge_media_to_caption.edges.length) ? node.edge_media_to_caption.edges[0].node.text : '';
+    const { hashtags, mentions } = parseCaption(caption);
     return {
         // eslint-disable-next-line no-nested-ternary
         type: node.__typename ? node.__typename.replace('Graph', '') : (node.is_video ? 'Video' : 'Image'),
         shortCode: node.shortcode,
-        caption: (node.edge_media_to_caption && node.edge_media_to_caption.edges.length) ? node.edge_media_to_caption.edges[0].node.text : '',
+        caption,
+        hashtags,
+        mentions,
         commentsCount: comments ? comments.count : null,
         dimensionsHeight: node.dimensions.height,
         dimensionsWidth: node.dimensions.width,

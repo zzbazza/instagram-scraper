@@ -220,6 +220,19 @@ function parseExtendOutputFunction (extendOutputFunction) {
     }
 }
 
+function parseCaption (caption) {
+    if (!caption) {
+        return { hashtags: [], mentions: [] };
+    }
+    // TODO: Figure out more precise regexes
+    // \w doesn't work because we might get non ASCI characters
+    const HASHTAG_REGEX = /#[\S]+\b/g
+    const MENTION_REGEX = /@[\S]+\b/g
+    const hashtags = (caption.match(HASHTAG_REGEX) || []).map((hashtag) => hashtag.replace('#', ''));
+    const mentions = (caption.match(MENTION_REGEX) || []).map((mention) => mention.replace('@', ''));
+    return { hashtags, mentions };
+}
+
 module.exports = {
     getItemSpec,
     getCheckedVariable,
@@ -227,4 +240,5 @@ module.exports = {
     finiteQuery,
     singleQuery,
     parseExtendOutputFunction,
+    parseCaption,
 };
