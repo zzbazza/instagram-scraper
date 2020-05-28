@@ -211,7 +211,7 @@ function parseExtendOutputFunction (extendOutputFunction) {
     let parsedExtendOutputFunction;
     if (typeof extendOutputFunction === 'string' && extendOutputFunction.trim() !== '') {
         try {
-            parsedExtendOutputFunction = safeEval(input.extendOutputFunction);
+            parsedExtendOutputFunction = safeEval(extendOutputFunction);
         } catch (e) {
             throw new Error(`'extendOutputFunction' is not valid Javascript! Error: ${e}`);
         }
