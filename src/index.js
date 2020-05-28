@@ -1,5 +1,4 @@
 const Apify = require('apify');
-const safeEval = require('safe-eval');
 const _ = require('underscore');
 
 const { log } = Apify.utils;
