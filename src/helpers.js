@@ -2,6 +2,7 @@ const Apify = require('apify');
 const tunnel = require('tunnel');
 const { CookieJar } = require('tough-cookie')
 const got = require('got');
+const safeEval = require('safe-eval');
 const { URLSearchParams } = require('url');
 const errors = require('./errors');
 const consts = require('./consts');
