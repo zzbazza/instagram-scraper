@@ -18,6 +18,7 @@ async function main() {
         proxy,
         resultsType,
         resultsLimit = 200,
+        pageTimeout = 60,
         maxRequestRetries,
         loginCookies,
         directUrls = [],
@@ -90,11 +91,14 @@ async function main() {
             if (
                 ABORTED_RESOURCE_TYPES.includes(req.resourceType())
                 || req.url().includes('map_tile.php')
+                || req.url().includes('connect.facebook.net')
                 || req.url().includes('logging_client_events')
+                || req.url().includes('instagram.com/static/bundles/')
             ) {
+                log.info(`Aborting url: ${req.url()}`);
                 return req.abort();
             }
-
+            log.info(`Processing url: ${req.url()}`);
             req.continue();
         });
 
@@ -118,7 +122,7 @@ async function main() {
 
         const response = await page.goto(request.url, {
             // itemSpec timeouts
-            timeout: 60 * 1000,
+            timeout: pageTimeout * 1000,
         });
 
         if (usingLogin) {
@@ -173,7 +177,7 @@ async function main() {
             switch (resultsType) {
                 case SCRAPE_TYPES.POSTS: return scrapePosts({ page, request, itemSpec, entryData, requestQueue, input });
                 case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec, entryData);
-                case SCRAPE_TYPES.DETAILS: return scrapeDetails({ input, request, request, itemSpec, entryData, page, proxy, userResult });
+                case SCRAPE_TYPES.DETAILS: return scrapeDetails({ input, request, itemSpec, entryData, page, proxy, userResult });
                 default: throw new Error('Not supported');
             }
         }

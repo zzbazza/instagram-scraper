@@ -31,6 +31,7 @@ The input of this scraper should be JSON containing the list of pages on Instagr
 | Field | Type | Description |
 | ----- | ---- | ----------- |
 | search | String | (optional) Query to search Instagram for |
+| pageTimeout | Integer | (optional) Defaults to 20 (seconds) |
 | searchType | String | (optional, required with search) What to search Instagram for, default is "hashtag", other options are "user" or "place"  |
 | searchLimit | Integer | (optional) How many search results to process, default is 20, maximum is 100. Set to 1 if you want to get the most matched one |
 | directUrls | Array | (optional) List of Instagram URLs (profile or hashtag or place) |
