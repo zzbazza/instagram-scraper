@@ -39,11 +39,15 @@ module.exports = {
     ],
     // These are needed for scrolling to work
     // TODO: Retest this
-    ABORT_RESOURCE_URL_EXCLUDES_SCROLL: [
+    ABORT_RESOURCE_URL_DOWNLOAD_JS: [
         'es6/Consumer',
         'es6/ProfilePageContainer',
+        'es6/PostPageContainer',
+        'es6/PostPageComments',
+        'es6/PostComment',
         'es6/cs_CZ.js',
         'es6/en',
         'es6/Vendor',
+        'es6/ActivityFeedBox'
     ]
 };

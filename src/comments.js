@@ -14,8 +14,9 @@ const comments = {};
 const getCommentsFromGraphQL = (data) => {
     const timeline = data.shortcode_media.edge_media_to_parent_comment;
     const commentItems = timeline ? timeline.edges.reverse() : [];
+    const commentsCount = timeline ? timeline.count : null;
     const hasNextPage = timeline ? timeline.page_info.has_next_page : false;
-    return { comments: commentItems, hasNextPage };
+    return { comments: commentItems, hasNextPage, commentsCount };
 };
 
 /**
@@ -112,7 +113,7 @@ const finiteScroll = async (pageData, page, request, length = 0) => {
  * @param {Object} itemSpec Parsed page data
  * @param {Object} entryData data from window._shared_data.entry_data
  */
-const scrapeComments = async (page, request, itemSpec, entryData) => {
+const scrapeComments = async ({ page, request, itemSpec, entryData }) => {
     // Check that current page is of a type which has comments
     if (itemSpec.pageType !== PAGE_TYPES.POST) throw errors.notPostPage();
 
@@ -121,7 +122,7 @@ const scrapeComments = async (page, request, itemSpec, entryData) => {
 
     if (initData[itemSpec.id]) {
         comments[itemSpec.id] = timeline.comments;
-        log(page.itemSpec, `${timeline.comments.length} items added, ${comments[page.itemSpec.id].length} items total`);
+        log(page.itemSpec, `${timeline.comments.length} comments loaded, ${comments[page.itemSpec.id].length}/${timeline.commentsCount} comments scraped`);
     } else {
         log(itemSpec, 'Waiting for initial data to load');
         while (!initData[itemSpec.id]) await page.waitFor(100);
@@ -177,9 +178,8 @@ async function handleCommentsGraphQLResponse(page, response) {
         initData[page.itemSpec.id].hasNextPage = false;
     }
 
-    log(page.itemSpec, `${timeline.comments.length} items added, ${comments[page.itemSpec.id].length} items total`);
+    log(page.itemSpec, `${timeline.comments.length} comments loaded, ${comments[page.itemSpec.id].length}/${timeline.commentsCount} comments scraped`);
 }
-
 
 module.exports = {
     scrapeComments,

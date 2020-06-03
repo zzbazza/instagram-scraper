@@ -223,7 +223,7 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
 
     if (initData[itemSpec.id]) {
         posts[itemSpec.id] = timeline.posts;
-        log(page.itemSpec, `${timeline.posts.length} items added, ${posts[page.itemSpec.id].length} items total`);
+        log(page.itemSpec, `${timeline.posts.length} posts added, ${posts[page.itemSpec.id].length} posts total`);
     } else {
         log(itemSpec, 'Waiting for initial data to load');
         while (!initData[itemSpec.id]) await page.waitFor(100);
@@ -326,7 +326,7 @@ async function handlePostsGraphQLResponse(page, response) {
 
     // await Apify.pushData(output);
     // log(itemSpec, `${output.length} items saved, task finished`);
-    log(page.itemSpec, `${timeline.posts.length} items added, ${posts[page.itemSpec.id].length} items total`);
+    log(page.itemSpec, `${timeline.posts.length} posts added, ${posts[page.itemSpec.id].length} posts total`);
 }
 
 module.exports = {

@@ -24,14 +24,14 @@ const searchUrls = async (input) => {
     } catch (error) {
         log.info('--  --  --  --  --');
         log.info(' ');
-        Apify.utils.log.error('Run failed because the provided input is incorrect:');
-        Apify.utils.log.error(error.message);
+        log.error('Run failed because the provided input is incorrect:');
+        log.error(error.message);
         log.info(' ');
         log.info('--  --  --  --  --');
         process.exit(1);
     }
 
-    Apify.utils.log.info(`Searching for "${search}"`);
+    log.info(`Searching for "${search}"`);
 
     const searchUrl = `https://www.instagram.com/web/search/topsearch/?context=${searchType}&query=${encodeURIComponent(search)}`;
     const response = await request({
@@ -44,9 +44,12 @@ const searchUrls = async (input) => {
     else if (searchType === SEARCH_TYPES.PLACE) urls = response.places.map(formatPlaceResult);
     else if (searchType === SEARCH_TYPES.HASHTAG) urls = response.hashtags.map(formatHashtagResult);
 
-    Apify.utils.log.info(`Found ${urls.length} search results. Limited to ${searchLimit}.`);
-
+    log.info(`Found  search results. Limited to ${searchLimit}.`);
+    const originalLength = urls.length;
     urls = urls.slice(0, searchLimit);
+
+    log.info(`Search found ${originalLength} URLs after limiting to ${searchLimit}:`);
+    console.dir(urls);
 
     return urls;
 };

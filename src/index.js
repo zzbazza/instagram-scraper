@@ -8,7 +8,7 @@ const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments')
 const { scrapeDetails }  = require('./details');
 const { searchUrls } = require('./search');
 const { getItemSpec, parseExtendOutputFunction } = require('./helpers');
-const { GRAPHQL_ENDPOINT, ABORT_RESOURCE_TYPES, ABORT_RESOURCE_URL_INCLUDES, ABORT_RESOURCE_URL_EXCLUDES_SCROLL, SCRAPE_TYPES } = require('./consts');
+const { GRAPHQL_ENDPOINT, ABORT_RESOURCE_TYPES, ABORT_RESOURCE_URL_INCLUDES, ABORT_RESOURCE_URL_DOWNLOAD_JS, SCRAPE_TYPES } = require('./consts');
 const { initQueryIds } = require('./query_ids');
 const errors = require('./errors');
 
@@ -94,15 +94,15 @@ async function main() {
         log.debug(`Is scroll page: ${isScrollPage}`);
 
         page.on('request', (req) => {
-            const abortBundle = isScrollPage
-                ?  req.url().includes('instagram.com/static/bundles/')
-                   && !ABORT_RESOURCE_URL_EXCLUDES_SCROLL.some((urlMatch) => req.url().includes(urlMatch))
-                : true;
+            const isJSBundle = req.url().includes('instagram.com/static/bundles/');
+            const abortJSBundle = isScrollPage
+                ? !ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => req.url().includes(urlMatch))
+                : true
 
             if (
                 ABORT_RESOURCE_TYPES.includes(req.resourceType())
                 || ABORT_RESOURCE_URL_INCLUDES.some((urlMatch) => req.url().includes(urlMatch))
-                || abortBundle
+                || (isJSBundle && abortJSBundle)
             ) {
                 log.debug(`Aborting url: ${req.url()}`);
                 return req.abort();
@@ -183,10 +183,9 @@ async function main() {
             await Apify.pushData(result);
         } else {
             page.itemSpec = itemSpec;
-
             switch (resultsType) {
                 case SCRAPE_TYPES.POSTS: return scrapePosts({ page, request, itemSpec, entryData, requestQueue, input });
-                case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec, entryData);
+                case SCRAPE_TYPES.COMMENTS: return scrapeComments({ page, request, itemSpec, entryData });
                 case SCRAPE_TYPES.DETAILS: return scrapeDetails({ input, request, itemSpec, entryData, page, proxy, userResult });
                 default: throw new Error('Not supported');
             }
