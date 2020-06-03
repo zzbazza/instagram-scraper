@@ -8,7 +8,7 @@ const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments')
 const { scrapeDetails }  = require('./details');
 const { searchUrls } = require('./search');
 const { getItemSpec, parseExtendOutputFunction } = require('./helpers');
-const { GRAPHQL_ENDPOINT, ABORTED_RESOURCE_TYPES, SCRAPE_TYPES } = require('./consts');
+const { GRAPHQL_ENDPOINT, ABORT_RESOURCE_TYPES, ABORT_RESOURCE_URL_INCLUDES, ABORT_RESOURCE_URL_EXCLUDES_SCROLL, SCRAPE_TYPES } = require('./consts');
 const { initQueryIds } = require('./query_ids');
 const errors = require('./errors');
 
@@ -86,25 +86,23 @@ async function main() {
             cookies = await page.cookies();
         };
 
+        // TODO: Refactor to use https://sdk.apify.com/docs/api/puppeteer#puppeteerblockrequestspage-options
+        // Keep in mind it requires more manual setup than page.setRequestInterception
         await page.setRequestInterception(true);
 
+        const isScrollPage = resultsType === SCRAPE_TYPES.POSTS || resultsType === SCRAPE_TYPES.COMMENTS;
+        log.debug(`Is scroll page: ${isScrollPage}`);
+
         page.on('request', (req) => {
-            const keepBundles = [];
-            // All these JS & CSS must be enabled for scrolling!!
-            if (resultsType === SCRAPE_TYPES.POSTS || resultsType === SCRAPE_TYPES.COMMENTS) {
-                keepBundles.push('es6/Consumer'); // All JS & CSS with prefix Consumer
-                keepBundles.push('es6/ProfilePageContainer');
-                keepBundles.push('es6/cs_CZ.js'); // Just JS
-                keepBundles.push('es6/Vendor');
-                keepBundles.push('es6'); // For testing purposes...
-            }
+            const abortBundle = isScrollPage
+                ?  req.url().includes('instagram.com/static/bundles/')
+                   && !ABORT_RESOURCE_URL_EXCLUDES_SCROLL.some((urlMatch) => req.url().includes(urlMatch))
+                : true;
 
             if (
-                ABORTED_RESOURCE_TYPES.includes(req.resourceType())
-                || req.url().includes('map_tile.php')
-                || req.url().includes('connect.facebook.net')
-                || req.url().includes('logging_client_events')
-                || (req.url().includes('instagram.com/static/bundles/') && !keepBundles.some(element => req.url().includes(element)))
+                ABORT_RESOURCE_TYPES.includes(req.resourceType())
+                || ABORT_RESOURCE_URL_INCLUDES.some((urlMatch) => req.url().includes(urlMatch))
+                || abortBundle
             ) {
                 log.debug(`Aborting url: ${req.url()}`);
                 return req.abort();
@@ -112,6 +110,7 @@ async function main() {
             log.debug(`Processing url: ${req.url()}`);
             req.continue();
         });
+
 
         page.on('response', async (response) => {
             const responseUrl = response.url();
