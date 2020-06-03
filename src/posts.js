@@ -7,6 +7,15 @@ const { getPosts } = require('./posts_graphql');
 const initData = {};
 const posts = {};
 
+const goNextPage = (userData, lastPost, currentLength) => {
+    const date = new Date(parseInt(lastPost.node.taken_at_timestamp, 10) * 1000);
+    if (userData.postsTimeLimit) {
+        return (new Date(userData.postsTimeLimit) < date);
+    } else {
+        return (currentLength < userData.limit);
+    }
+};
+
 /**
  * Takes type of page and data loaded through GraphQL and outputs
  * correct list of posts based on the page type.
@@ -153,7 +162,7 @@ const loadMore = async (pageData, page, retry = 0) => {
  * @param {Object} request
  * @param {Number} length
  */
-const finiteScroll = async (pageData, page, request, length = 0) => {
+const finiteScroll = async (pageData, page, request) => {
     const data = await loadMore(pageData, page);
     if (data) {
         const timeline = getPostsFromGraphQL(pageData.pageType, data);
@@ -162,8 +171,8 @@ const finiteScroll = async (pageData, page, request, length = 0) => {
 
     await page.waitFor(1500); // prevent rate limited error
 
-    if (posts[pageData.id].length < request.userData.limit && posts[pageData.id].length !== length) {
-        await finiteScroll(pageData, page, request, posts[pageData.id].length);
+    if (goNextPage(request.userData, posts[pageData.id].slice(-1)[0], posts[pageData.id].length)) {
+        await finiteScroll(pageData, page, request);
     }
 };
 
@@ -216,9 +225,11 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
         && document.querySelector('article > h2').textContent === 'Most recent')
         : true;
 
-    if (initData[itemSpec.id].hasNextPage && posts[itemSpec.id].length < request.userData.limit && hasMostRecentPostsOnHashtagPage) {
-        await page.waitFor(1000);
-        await finiteScroll(itemSpec, page, request, posts.length);
+    if (initData[itemSpec.id].hasNextPage && hasMostRecentPostsOnHashtagPage) {
+        if (goNextPage(request.userData, timeline.posts.slice(-1)[0], posts[itemSpec.id].length)) {
+            await page.waitFor(1000);
+            await finiteScroll(itemSpec, page, request);
+        }
     }
 
     const filteredItemSpec = {};
@@ -250,7 +261,11 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
         locationId: (item.node.location && item.node.location.id) || null,
         ownerId: item.owner && item.owner.id || null,
         ownerUsername: (item.node.owner && item.node.owner.username) || null,
-    })).slice(0, request.userData.limit);
+    }));
+
+    if (!request.userData.postsTimeLimit) {
+        output = output.slice(0, request.userData.limit);
+    }
 
     if (input.expandOwners && itemSpec.pageType !== PAGE_TYPES.PROFILE) {
         output = await expandOwnerDetails(output, page, input, itemSpec);

@@ -18,6 +18,7 @@ async function main() {
         proxy,
         resultsType,
         resultsLimit = 200,
+        postsTimeLimit,
         pageTimeout = 60,
         maxRequestRetries,
         loginCookies,
@@ -69,7 +70,7 @@ async function main() {
 
     const requestListSources = urls.map(url => ({
         url,
-        userData: { limit: resultsLimit },
+        userData: { limit: resultsLimit, postsTimeLimit: postsTimeLimit },
     }));
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
