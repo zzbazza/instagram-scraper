@@ -1,6 +1,7 @@
 const { SCRAPE_TYPES, SEARCH_TYPES } = require('./consts');
 
 module.exports = {
+    redirectedToLogin: () => 'Page got redirected into login page. Instagram is blocking access. Retrying with different IP and browser.',
     unsupportedPage: () => new Error('This instagram page is not supported.'),
     proxyIsRequired: () => new Error('Proxy is required to run this actor'),
     urlsAreRequired: () => new Error('Please provide urls configuration'),

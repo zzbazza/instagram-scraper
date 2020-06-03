@@ -1,37 +1,53 @@
 const Apify = require('apify');
-const safeEval = require('safe-eval');
 const _ = require('underscore');
 
 const { log } = Apify.utils;
+const crypto = require('crypto');
 const { scrapePosts, handlePostsGraphQLResponse, scrapePost } = require('./posts');
-const { scrapeComments, handleCommentsGraphQLResponse } = require('./comments');
-const { scrapeDetails } = require('./details');
+const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments');
+const { scrapeDetails }  = require('./details');
 const { searchUrls } = require('./search');
-const { getItemSpec } = require('./helpers');
+const { getItemSpec, parseExtendOutputFunction } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORTED_RESOURCE_TYPES, SCRAPE_TYPES } = require('./consts');
+const { initQueryIds } = require('./query_ids');
 const errors = require('./errors');
 
 async function main() {
     const input = await Apify.getInput();
-    const { proxy, resultsType, resultsLimit = 200 } = input;
+    const {
+        proxy,
+        resultsType,
+        resultsLimit = 200,
+        postsTimeLimit,
+        pageTimeout = 60,
+        maxRequestRetries,
+        loginCookies,
+        directUrls = [],
+    } = input;
 
-    let extendOutputFunction;
-    if (typeof input.extendOutputFunction === 'string' && input.extendOutputFunction.trim() !== '') {
-        try {
-            extendOutputFunction = safeEval(input.extendOutputFunction);
-        } catch (e) {
-            throw new Error(`'extendOutputFunction' is not valid Javascript! Error: ${e}`);
-        }
-        if (typeof extendOutputFunction !== 'function') {
-            throw new Error('extendOutputFunction is not a function! Please fix it or use just default ouput!');
-        }
+    const extendOutputFunction = parseExtendOutputFunction(input.extendOutputFunction);
+
+    if (proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
+
+    await initQueryIds();
+
+    let maxConcurrency = 1000;
+
+    const usingLogin = loginCookies && Array.isArray(loginCookies);
+
+    if (usingLogin) {
+        await Apify.utils.log.warning('Cookies were used, setting maxConcurrency to 1 and using one proxy session!');
+        maxConcurrency = 1;
+        const session = crypto.createHash('sha256').update(JSON.stringify(loginCookies)).digest('hex').substring(0,16)
+        if (proxy.useApifyProxy) proxy.apifyProxySession = `insta_session_${session}`;
     }
 
-    const foundUrls = await searchUrls(input);
-    const urls = [
-        ...(input.directUrls || []),
-        ...foundUrls,
-    ];
+    let urls;
+    if (Array.isArray(directUrls) && directUrls.length > 0) {
+        urls = directUrls;
+    } else {
+        urls = await searchUrls(input);
+    }
 
     if (urls.length === 0) {
         Apify.utils.log.info('No URLs to process');
@@ -54,23 +70,46 @@ async function main() {
 
     const requestListSources = urls.map(url => ({
         url,
-        userData: { limit: resultsLimit },
+        userData: { limit: resultsLimit, postsTimeLimit: postsTimeLimit },
     }));
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
 
+    let cookies = loginCookies;
+
     const gotoFunction = async ({ request, page }) => {
+        await page.setBypassCSP(true);
+        if (cookies && Array.isArray(cookies)) {
+            await page.setCookie(...cookies);
+        } else if (input.loginUsername && input.loginPassword) {
+            await login(input.loginUsername, input.loginPassword, page)
+            cookies = await page.cookies();
+        };
+
         await page.setRequestInterception(true);
 
         page.on('request', (req) => {
+            const keepBundles = [];
+            // All these JS & CSS must be enabled for scrolling!!
+            if (resultsType === SCRAPE_TYPES.POSTS || resultsType === SCRAPE_TYPES.COMMENTS) {
+                keepBundles.push('es6/Consumer'); // All JS & CSS with prefix Consumer
+                keepBundles.push('es6/ProfilePageContainer');
+                keepBundles.push('es6/cs_CZ.js'); // Just JS
+                keepBundles.push('es6/Vendor');
+                keepBundles.push('es6'); // For testing purposes...
+            }
+
             if (
                 ABORTED_RESOURCE_TYPES.includes(req.resourceType())
                 || req.url().includes('map_tile.php')
+                || req.url().includes('connect.facebook.net')
                 || req.url().includes('logging_client_events')
+                || (req.url().includes('instagram.com/static/bundles/') && !keepBundles.some(element => req.url().includes(element)))
             ) {
+                log.debug(`Aborting url: ${req.url()}`);
                 return req.abort();
             }
-
+            log.debug(`Processing url: ${req.url()}`);
             req.continue();
         });
 
@@ -92,13 +131,24 @@ async function main() {
             }
         });
 
-        return page.goto(request.url, {
+        const response = await page.goto(request.url, {
             // itemSpec timeouts
-            timeout: 60 * 1000,
+            timeout: pageTimeout * 1000,
         });
+
+        if (usingLogin) {
+            try {
+                const viewerId = await page.evaluate(() => window._sharedData.config.viewerId);
+                if (!viewerId) throw new Error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
+            } catch (loginError) {
+                await Apify.utils.log.error(loginError.message);
+                process.exit(1);
+            }
+        }
+        return response;
     };
 
-    const handlePageFunction = async ({ page, request, response }) => {
+    const handlePageFunction = async ({ page, puppeteerPool, request, response }) => {
         if (response.status() === 404) {
             Apify.utils.log.info(`Page "${request.url}" does not exist.`);
             return;
@@ -110,6 +160,11 @@ async function main() {
         if (pending) throw new Error('Page took too long to load initial data, trying again.');
         if (!data || !data.entry_data) throw new Error('Page does not contain initial data, trying again.');
         const { entry_data: entryData } = data;
+
+        if (entryData.LoginAndSignupPage) {
+            await puppeteerPool.retire(page.browser());
+            throw errors.redirectedToLogin();
+        }
 
         const itemSpec = getItemSpec(entryData);
 
@@ -131,9 +186,9 @@ async function main() {
             page.itemSpec = itemSpec;
 
             switch (resultsType) {
-                case SCRAPE_TYPES.POSTS: return scrapePosts(page, request, itemSpec, entryData, requestQueue);
+                case SCRAPE_TYPES.POSTS: return scrapePosts({ page, request, itemSpec, entryData, requestQueue, input });
                 case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec, entryData);
-                case SCRAPE_TYPES.DETAILS: return scrapeDetails(request, itemSpec, entryData, userResult);
+                case SCRAPE_TYPES.DETAILS: return scrapeDetails({ input, request, itemSpec, entryData, page, proxy, userResult });
                 default: throw new Error('Not supported');
             }
         }
@@ -147,14 +202,15 @@ async function main() {
         requestList,
         requestQueue,
         gotoFunction,
+        maxRequestRetries,
         puppeteerPoolOptions: {
             maxOpenPagesPerInstance: 1,
             retireInstanceAfterRequestCount: 30,
         },
         launchPuppeteerOptions: {
             ...proxy,
-            headless: true,
             stealth: true,
+            useChrome: true,
             ignoreHTTPSErrors: true,
             args: ['--enable-features=NetworkService', '--ignore-certificate-errors'],
         },

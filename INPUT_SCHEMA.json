@@ -23,7 +23,7 @@
         "searchLimit": {
             "title": "Search results limit",
             "type": "integer",
-            "description": "How many search results (eq. pages) should be processed",
+            "description": "How many search results (eq. pages) should be processed.",
             "editor": "number",
             "default": 10,
             "minimum": 1,
@@ -39,21 +39,79 @@
             "uniqueItems": true
         },
         "resultsType": {
-            "title": "What to scrape from each page",
+            "title": "What to scrape from each page.",
             "type": "string",
-            "description": "What to scrape from each Instagram page URL or search result",
+            "description": "What to scrape from each Instagram page URL or search result.  You need to provide correct parent pages, e.g. comments can be scraped only from posts, not from profiles.",
             "editor": "select",
             "enum": ["posts", "comments", "details"],
-            "enumTitles": ["Posts", "Comments", "Details"],
+            "enumTitles": [
+                "Posts (from profile pages, hashtag or place search)",
+                "Comments (from post pages)",
+                "Details (of profiles, posts or search pages - from profile, post or search pages)"],
             "default": "posts"
         },
         "resultsLimit": {
             "title": "Max items",
             "type": "integer",
-            "description": "How many posts or comments to scrape from each Instagram URL or found page, ignored when \"Details\" type is specified",
+            "description": "How many posts or comments to scrape from each Instagram URL or found page, ignored when \"Details\" type is specified. Notice that if you use search via hashtags or place, each found page will have this limit separately. You can limit searchLimit to reduce the number of total results.",
             "editor": "number",
             "unit": "per page",
             "default": 200
+        },
+        "maxRequestRetries": {
+            "title": "Max request retries",
+            "type": "integer",
+            "description": "How many times a pge will be retried in case of being blocked or other errors.",
+            "default": 5
+        },
+        "proxy": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "<strong>Proxy is required to run this actor!</strong> Either use Apify proxy, or provide your own proxy servers.",
+            "prefill": { "useApifyProxy": true, "apifyProxyGroups": [] },
+            "editor": "proxy"
+        },
+        "loginCookies": {
+            "title": "Cookies",
+            "type": "array",
+            "description": "If you want to sign in to instagram to have access to more data than on anonymous profile, but do not wish to have your credentials in input, then you can use your cookies.",
+            "editor": "json",
+            "sectionCaption": "Login using cookies",
+            "sectionDescription": "Instagram limits access to certain data (likes, post user data, followers and others) if user is anonymous. You can provide you cookies here (copied from chrome plugin like 'EditThisCookie' to use a normal account. Do not use your own cookies here and rather create a new temporary account. When cookies are used, the run is limited to concurrency 1 and one session, so that the account does not get banned too soon."
+        },
+        "likedByLimits": {
+            "title": "Get post likes",
+            "type": "integer",
+            "description": "If this limit is set above 0, then the solution will attempt to load additional details about users who liked the post.",
+            "editor": "number",
+            "unit": "likes",
+            "default": 0,
+            "sectionCaption": "Additional data loaded from detail pages",
+            "sectionDescription": "If limits in this section are set above 0, then when the solution enters a page, it attempts to load the specified items until limit is reached. All of the options below require login credentials."
+        },
+        "followingLimit": {
+            "title": "Get profile following",
+            "type": "integer",
+            "description": "If this limit is set above 0, then the solution will attempt to find users who the profile owner is following.",
+            "editor": "number",
+            "unit": "users",
+            "default": 0
+        },
+        "followedByLimit": {
+            "title": "Get profile followed by",
+            "type": "integer",
+            "description": "If this limit is set above 0, then the solution will attempt to find users who the profile owner is followed by.",
+            "editor": "number",
+            "unit": "users",
+            "default": 0
+        },
+        "expandOwners": {
+            "title": "Query post owner",
+            "type": "boolean",
+            "description": "If this feature is used, then for each post the solution will attempt to query additional details about it's owner. This will drastically slow down crawling speed and increase chance of an account ban if credentials are provided.",
+            "editor": "checkbox",
+            "sectionCaption": "Experimental features",
+            "sectionDescription": "Features in this section are highly experimental, can result in ban of account if logged in and might cause the solution to fail."
         },
         "extendOutputFunction": {
             "title": "Extend output function",
@@ -62,13 +120,6 @@
             "description": "Function that takes a JQuery handle ($) as argument and returns data that will be merged with the default output",
             "prefill": "($) => { return {} }",
             "editor": "javascript"
-        },
-        "proxy": {
-            "title": "Proxy configuration",
-            "type": "object",
-            "description": "<strong>Proxy is required to run this actor!</strong> Either use Apify proxy, or provide your own proxy servers.",
-            "prefill": { "useApifyProxy": true, "apifyProxyGroups": [] },
-            "editor": "proxy"
         }
     },
     "required": ["proxy"]
