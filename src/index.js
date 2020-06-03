@@ -91,16 +91,10 @@ async function main() {
             const keepBundles = [];
             // All these JS & CSS must be enabled for scrolling!!
             if (resultsType === SCRAPE_TYPES.POSTS) {
-                keepBundles.push('es6/Consumer.js'); // Needed
-                keepBundles.push('es6/Consumer.css'); // Not necessary but better use..
-                keepBundles.push('es6/ProfilePageContainer.js'); // Needed
-                keepBundles.push('es6/ProfilePageContainer.css'); // Needed
-                keepBundles.push('es6/cs_CZ.js'); // Needed
-                keepBundles.push('es6/Vendor.js'); // Needed
-                keepBundles.push('es6/Vendor.css'); // Needed
-                keepBundles.push('es6/ConsumerLibCommons.js');
-                keepBundles.push('es6/ConsumerUICommons.js');// Needed
-                keepBundles.push('es6/ConsumerAsyncCommons.js');// Needed
+                keepBundles.push('es6/Consumer'); // All JS & CSS with prefix Consumer
+                keepBundles.push('es6/ProfilePageContainer');
+                keepBundles.push('es6/cs_CZ.js'); // Just JS
+                keepBundles.push('es6/Vendor');
             }
 
             if (
