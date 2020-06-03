@@ -95,10 +95,10 @@ async function main() {
                 || req.url().includes('logging_client_events')
                 || req.url().includes('instagram.com/static/bundles/')
             ) {
-                log.info(`Aborting url: ${req.url()}`);
+                log.debug(`Aborting url: ${req.url()}`);
                 return req.abort();
             }
-            log.info(`Processing url: ${req.url()}`);
+            log.debug(`Processing url: ${req.url()}`);
             req.continue();
         });
 
