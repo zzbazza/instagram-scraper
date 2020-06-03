@@ -18,6 +18,8 @@ async function main() {
         proxy,
         resultsType,
         resultsLimit = 200,
+        postsTimeLimit,
+        pageTimeout = 60,
         maxRequestRetries,
         loginCookies,
         directUrls = [],
@@ -68,7 +70,7 @@ async function main() {
 
     const requestListSources = urls.map(url => ({
         url,
-        userData: { limit: resultsLimit },
+        userData: { limit: resultsLimit, postsTimeLimit: postsTimeLimit },
     }));
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
@@ -87,14 +89,27 @@ async function main() {
         await page.setRequestInterception(true);
 
         page.on('request', (req) => {
+            const keepBundles = [];
+            // All these JS & CSS must be enabled for scrolling!!
+            if (resultsType === SCRAPE_TYPES.POSTS || resultsType === SCRAPE_TYPES.COMMENTS) {
+                keepBundles.push('es6/Consumer'); // All JS & CSS with prefix Consumer
+                keepBundles.push('es6/ProfilePageContainer');
+                keepBundles.push('es6/cs_CZ.js'); // Just JS
+                keepBundles.push('es6/Vendor');
+                keepBundles.push('es6'); // For testing purposes...
+            }
+
             if (
                 ABORTED_RESOURCE_TYPES.includes(req.resourceType())
                 || req.url().includes('map_tile.php')
+                || req.url().includes('connect.facebook.net')
                 || req.url().includes('logging_client_events')
+                || (req.url().includes('instagram.com/static/bundles/') && !keepBundles.some(element => req.url().includes(element)))
             ) {
+                log.debug(`Aborting url: ${req.url()}`);
                 return req.abort();
             }
-
+            log.debug(`Processing url: ${req.url()}`);
             req.continue();
         });
 
@@ -118,7 +133,7 @@ async function main() {
 
         const response = await page.goto(request.url, {
             // itemSpec timeouts
-            timeout: 60 * 1000,
+            timeout: pageTimeout * 1000,
         });
 
         if (usingLogin) {
@@ -173,7 +188,7 @@ async function main() {
             switch (resultsType) {
                 case SCRAPE_TYPES.POSTS: return scrapePosts({ page, request, itemSpec, entryData, requestQueue, input });
                 case SCRAPE_TYPES.COMMENTS: return scrapeComments(page, request, itemSpec, entryData);
-                case SCRAPE_TYPES.DETAILS: return scrapeDetails({ input, request, request, itemSpec, entryData, page, proxy, userResult });
+                case SCRAPE_TYPES.DETAILS: return scrapeDetails({ input, request, itemSpec, entryData, page, proxy, userResult });
                 default: throw new Error('Not supported');
             }
         }
