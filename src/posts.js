@@ -238,8 +238,12 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
         alt: item.node.accessibility_caption,
         url: `https://www.instagram.com/p/${item.node.shortcode}`,
         likesCount: item.node.edge_media_preview_like.count,
+        commentsCount: item.node.edge_media_to_comment.count,
+        caption: item.node.edge_media_to_caption.edges && item.node.edge_media_to_caption.edges[0] && item.node.edge_media_to_caption.edges[0].node.text,
         imageUrl: item.node.display_url,
-        firstComment: item.node.edge_media_to_caption.edges[0] && item.node.edge_media_to_caption.edges[0].node.text,
+        id: item.node.id,
+        shortcode: item.node.shortcode,
+        firstComment: item.node.edge_media_to_comment.edges && item.node.edge_media_to_comment.edges[0] && item.node.edge_media_to_comment.edges[0].node.text,
         timestamp: new Date(parseInt(item.node.taken_at_timestamp, 10) * 1000),
         locationName: (item.node.location && item.node.location.name) || null,
         // usable by appending https://www.instagram.com/explore/locations/ to see the location

@@ -88,12 +88,27 @@ async function main() {
         await page.setRequestInterception(true);
 
         page.on('request', (req) => {
+            const keepBundles = [];
+            // All these JS & CSS must be enabled for scrolling!!
+            if (resultsType === SCRAPE_TYPES.POSTS) {
+                keepBundles.push('es6/Consumer.js'); // Needed
+                keepBundles.push('es6/Consumer.css'); // Not necessary but better use..
+                keepBundles.push('es6/ProfilePageContainer.js'); // Needed
+                keepBundles.push('es6/ProfilePageContainer.css'); // Needed
+                keepBundles.push('es6/cs_CZ.js'); // Needed
+                keepBundles.push('es6/Vendor.js'); // Needed
+                keepBundles.push('es6/Vendor.css'); // Needed
+                keepBundles.push('es6/ConsumerLibCommons.js');
+                keepBundles.push('es6/ConsumerUICommons.js');// Needed
+                keepBundles.push('es6/ConsumerAsyncCommons.js');// Needed
+            }
+
             if (
                 ABORTED_RESOURCE_TYPES.includes(req.resourceType())
                 || req.url().includes('map_tile.php')
                 || req.url().includes('connect.facebook.net')
                 || req.url().includes('logging_client_events')
-                || req.url().includes('instagram.com/static/bundles/')
+                || (req.url().includes('instagram.com/static/bundles/') && !keepBundles.some(element => req.url().includes(element)))
             ) {
                 log.debug(`Aborting url: ${req.url()}`);
                 return req.abort();
