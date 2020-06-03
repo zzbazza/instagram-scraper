@@ -2,5 +2,5 @@ apify_storage
 node_modules
 debug.log
 .idea
-
+.vscode
 apify_storage
