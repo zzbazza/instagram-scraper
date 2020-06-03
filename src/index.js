@@ -90,7 +90,7 @@ async function main() {
         page.on('request', (req) => {
             const keepBundles = [];
             // All these JS & CSS must be enabled for scrolling!!
-            if (resultsType === SCRAPE_TYPES.POSTS) {
+            if (resultsType === SCRAPE_TYPES.POSTS || resultsType === SCRAPE_TYPES.COMMENTS) {
                 keepBundles.push('es6/Consumer'); // All JS & CSS with prefix Consumer
                 keepBundles.push('es6/ProfilePageContainer');
                 keepBundles.push('es6/cs_CZ.js'); // Just JS
