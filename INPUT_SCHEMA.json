@@ -64,6 +64,12 @@
             "description": "How many times a pge will be retried in case of being blocked or other errors.",
             "default": 5
         },
+        "scrapePostsUntilDate": {
+            "title": "Scrape posts until date",
+            "type": "string",
+            "description": "Scrapes post from the latest until it reaches older than provided date. The date should be in format YYYY-MM-DD. By defautl scrapes all posts.",
+            "editor": "textfield"
+        },
         "proxy": {
             "title": "Proxy configuration",
             "type": "object",

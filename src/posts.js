@@ -8,12 +8,23 @@ const initData = {};
 const posts = {};
 
 const goNextPage = (userData, lastPost, currentLength) => {
-    const date = new Date(parseInt(lastPost.node.taken_at_timestamp, 10) * 1000);
-    if (userData.postsTimeLimit) {
-        return (new Date(userData.postsTimeLimit) < date);
+    const postDate = new Date(parseInt(lastPost.node.taken_at_timestamp, 10) * 1000);
+    let willContinue = true;
+    if (userData.scrapePostsUntilDate) {
+        // We want to continue scraping (return true) if the scrapePostsUntilDate is older (smaller) than the date of the last post
+        // Don't forget we scrape from the most recent ones to the past
+        const scrapePostsUntilDate = new Date(userData.scrapePostsUntilDate);
+        willContinue = scrapePostsUntilDate < postDate;
+        if (!willContinue) {
+            console.warn(`Reached post with older date than our limit: ${postDate}. Finishing scrolling...`);
+        }
     } else {
-        return (currentLength < userData.limit);
+        willContinue = (currentLength < userData.limit);
+        if (!willContinue) {
+            console.warn(`Reached our posts max limit: ${limit}. Finishing scrolling...`);
+        }
     }
+    return willContinue;
 };
 
 /**
@@ -263,8 +274,12 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
         ownerUsername: (item.node.owner && item.node.owner.username) || null,
     }));
 
-    if (!request.userData.postsTimeLimit) {
+    if (request.userData.limit) {
         output = output.slice(0, request.userData.limit);
+    }
+    if (request.userData.scrapePostsUntilDate) {
+        const scrapePostsUntilDate = new Date(request.userData.scrapePostsUntilDate);
+        output = output.filter((item) => item.timestamp > scrapePostsUntilDate);
     }
 
     if (input.expandOwners && itemSpec.pageType !== PAGE_TYPES.PROFILE) {
