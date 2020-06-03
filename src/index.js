@@ -96,6 +96,7 @@ async function main() {
                 keepBundles.push('es6/ProfilePageContainer');
                 keepBundles.push('es6/cs_CZ.js'); // Just JS
                 keepBundles.push('es6/Vendor');
+                keepBundles.push('es6'); // For testing purposes...
             }
 
             if (
