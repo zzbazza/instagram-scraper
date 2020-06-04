@@ -262,33 +262,60 @@ function filterPushedItemsAndUpdateState ({ items, itemSpec, parsingFn, scrollin
     return itemsToPush;
 }
 
+const checkLastPostDate = (userData, lastPostDate) => {
+    const postDate = new Date(lastPostDate);
+    let willContinue = true;
+    if (userData.scrapePostsUntilDate) {
+        // We want to continue scraping (return true) if the scrapePostsUntilDate is older (smaller) than the date of the last post
+        // Don't forget we scrape from the most recent ones to the past
+        const scrapePostsUntilDate = new Date(userData.scrapePostsUntilDate);
+        willContinue = scrapePostsUntilDate < postDate;
+        if (!willContinue) {
+            console.warn(`Reached post with older date than our limit: ${postDate}. Finishing scrolling...`);
+        }
+    }
+    return willContinue;
+};
+
+const shouldContinueScrolling = ({ userData, scrollingState, itemSpec, oldItemCount, type }) => {
+    if (type === 'posts') {
+        const shouldContinuePosts = checkLastPostDate(userData, scrollingState[itemSpec.id].lastPostDate);
+        if (!shouldContinuePosts) {
+            return false;
+        }
+    }
+
+    const itemsScrapedCount = Object.keys(scrollingState[itemSpec.id].ids).length;
+    const reachedLimit = itemsScrapedCount >= userData.limit
+    if (reachedLimit) {
+        console.warn(`Reached max results (posts or commets) limit: ${userData.limit}. Finishing scrolling...`);
+    }
+    const shouldGoNextGeneric = !reachedLimit && (itemsScrapedCount !== oldItemCount || scrollingState[itemSpec.id].allDuplicates);
+
+}
+
 const finiteScroll = async (context) => {
     const {
-        pageData,
+        itemSpec,
         page,
-        request,
+        userData,
         scrollingState,
         loadMoreFn,
         getItemsFromGraphQLFn,
         type,
     } = context;
-    const oldItemCount = Object.keys(scrollingState[pageData.id].ids).length;
-    const data = await loadMoreFn(pageData, page);
+    const oldItemCount = Object.keys(scrollingState[itemSpec.id].ids).length;
+    const data = await loadMoreFn(itemSpec, page);
     if (data) {
         const timeline = getItemsFromGraphQLFn(data);
         if (!timeline.hasNextPage) return;
     }
 
-    const itemsScrapedCount = Object.keys(scrollingState[pageData.id].ids).length;
-    const reachedLimit = itemsScrapedCount >= request.userData.limit
-    if (reachedLimit) {
-        console.warn(`Reached max results (posts or commets) limit: ${userData.limit}. Finishing scrolling...`);
-    }
-    const shouldGoNextGeneric = !reachedLimit && (itemsScrapedCount !== oldItemCount || scrollingState[pageData.id].allDuplicates);
-    if (type === 'posts') {
-        checkLastPostDate(request.userData, scrollingState[pageData.id].lastPostDate)
-    }
-    if (shouldGoNextGeneric) {
+    await page.waitFor(200);
+
+    const doContinue = shouldContinueScrolling({ userData, scrollingState, itemSpec, oldItemCount, type })
+
+    if (doContinue) {
         await finiteScroll(context);
     }
 };

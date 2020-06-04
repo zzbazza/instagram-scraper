@@ -86,21 +86,6 @@ const loadMore = async (pageData, page, retry = 0) => {
     return data;
 };
 
-/*
-const finiteScroll = async ({ pageData, page, request, scrollingState, length = 0 }) => {
-    const data = await loadMore(pageData, page);
-    if (data) {
-        const timeline = getCommentsFromGraphQL(data);
-        if (!timeline.hasNextPage) return;
-    }
-
-    const commentsScrapedCount = Object.keys(scrollingState[pageData.id].ids).length;
-    if (commentsScrapedCount < request.userData.limit && (commentsScrapedCount !== length || scrollingState[pageData.id].allDuplicates)) {
-        await finiteScroll({ pageData, page, request, scrollingState, length: commentsScrapedCount });
-    }
-};
-*/
-
 /**
  * Loads data from entry date and then loads comments untill limit is reached
  * @param {Object} page Puppeteer Page object
@@ -144,9 +129,9 @@ const scrapeComments = async ({ page, request, itemSpec, entryData, scrollingSta
     if (willContinueScroll) {
         await page.waitFor(1000);
         await finiteScroll({
-            pageData: itemSpec,
+            itemSpec,
             page,
-            request,
+            userData: request.userData,
             scrollingState,
             loadMoreFn: loadMore,
             getItemsFromGraphQLFn: getCommentsFromGraphQL,

@@ -1,0 +1,21 @@
+{
+    "comments": {
+        "search": "epica",
+        "searchType": "hashtag",
+        "searchLimit": 10,
+        "resultsType": "comments",
+        "scrapePostsUntilDate": "2020-01-01",
+        "resultsLimit": 500,
+        "directUrls": [
+            "https://www.instagram.com/p/CAvguuPo_MN/",
+            "https://www.instagram.com/p/CAiAO9YIilQ/",
+            "https://www.instagram.com/p/CAdUz8YICRv/"
+        ],
+        "proxy": {
+            "useApifyProxy": true,
+            "apifyProxyGroups": [
+                "RESIDENTIAL"
+            ]
+        }
+    }
+}

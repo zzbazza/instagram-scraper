@@ -1,5 +1,5 @@
 const Apify = require('apify');
-const { getCheckedVariable, log } = require('./helpers');
+const { getCheckedVariable, log, finiteScroll, filterPushedItemsAndUpdateState } = require('./helpers');
 const { PAGE_TYPES, GRAPHQL_ENDPOINT } = require('./consts');
 const { expandOwnerDetails } = require('./user_details');
 const { getPosts } = require('./posts_graphql');
@@ -29,6 +29,7 @@ const getPostsFromGraphQL = (pageType, data) => {
     }
     const postItems = timeline ? timeline.edges : [];
     const hasNextPage = timeline ? timeline.page_info.has_next_page : false;
+    const postsCount = timeline ? timeline.count : null;
     return { posts: postItems, hasNextPage };
 };
 
@@ -146,13 +147,7 @@ const loadMore = async (pageData, page, retry = 0) => {
     return data;
 };
 
-/**
- * Scrolls page and loads data until the limit is reached or the page has no more posts
- * @param {Object} pageData
- * @param {Object} page
- * @param {Object} request
- * @param {Number} length
- */
+/*
 const finiteScroll = async (pageData, page, request) => {
     const data = await loadMore(pageData, page);
     if (data) {
@@ -166,21 +161,7 @@ const finiteScroll = async (pageData, page, request) => {
         await finiteScroll(pageData, page, request);
     }
 };
-
-const checkLastPostDate = (userData, lastPostDate) => {
-    const postDate = new Date(lastPostDate);
-    let willContinue = true;
-    if (userData.scrapePostsUntilDate) {
-        // We want to continue scraping (return true) if the scrapePostsUntilDate is older (smaller) than the date of the last post
-        // Don't forget we scrape from the most recent ones to the past
-        const scrapePostsUntilDate = new Date(userData.scrapePostsUntilDate);
-        willContinue = scrapePostsUntilDate < postDate;
-        if (!willContinue) {
-            console.warn(`Reached post with older date than our limit: ${postDate}. Finishing scrolling...`);
-        }
-    }
-    return willContinue;
-};
+*/
 
 const scrapePost = (request, itemSpec, entryData) => {
     const item = entryData.PostPage[0].graphql.shortcode_media;
@@ -223,8 +204,22 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
     }
 
     if (initData[itemSpec.id]) {
+        /*
         posts[itemSpec.id] = timeline.posts;
         log(page.itemSpec, `${timeline.posts.length} posts added, ${posts[page.itemSpec.id].length} posts total`);
+        */
+
+        const postsReadyToPush = filterPushedItemsAndUpdateState({
+            items: timeline.posts,
+            itemSpec,
+            parsingFn: parsePostsForOutput,
+            scrollingState
+        });
+        // We save last date for the option to specify how far into the past we should scroll
+        scrollingState[itemSpec.id].lastPostDate = postsReadyToPush[postsReadyToPush.length - 1].timestamp;
+
+        log(page.itemSpec, `${timeline.posts.length} posts loaded, ${Object.keys(scrollingState[itemSpec.id].ids).length}/${timeline.postsCount} posts scraped`);
+        await Apify.pushData(postsReadyToPush);
     } else {
         log(itemSpec, 'Waiting for initial data to load');
         while (!initData[itemSpec.id]) await page.waitFor(100);
@@ -238,9 +233,24 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
         : true;
 
     if (initData[itemSpec.id].hasNextPage && hasMostRecentPostsOnHashtagPage) {
+        // TODO: Refactor this check out
+        const itemsScrapedCount = Object.keys(scrollingState[itemSpec.id].ids).length;
+        const reachedLimit = itemsScrapedCount >= request.userData.limit
+        if (reachedLimit) {
+            console.warn(`Reached max results (posts or commets) limit: ${userData.limit}. Finishing scrolling...`);
+        }
+        const shouldGoNextGeneric = !reachedLimit && (itemsScrapedCount !== oldItemCount || scrollingState[itemSpec.id].allDuplicates);
         if (goNextPage(request.userData, timeline.posts.slice(-1)[0], posts[itemSpec.id].length)) {
             await page.waitFor(1000);
-            await finiteScroll(itemSpec, page, request);
+            await finiteScroll({
+                pageData: itemSpec,
+                page,
+                request,
+                scrollingState,
+                loadMoreFn: loadMore,
+                getItemsFromGraphQLFn: getPostsFromGraphQL,
+                type: 'posts',
+            });
         }
     }
 
