@@ -3,6 +3,7 @@ const { getCheckedVariable, log } = require('./helpers');
 const { PAGE_TYPES, GRAPHQL_ENDPOINT } = require('./consts');
 const { expandOwnerDetails } = require('./user_details');
 const { getPosts } = require('./posts_graphql');
+const { formatSinglePost } = require('./details');
 
 const initData = {};
 const posts = {};
@@ -263,23 +264,7 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
             postOwnerId: (item.node.owner && item.node.owner.id) || null,
         },
         ...filteredItemSpec,
-        alt: item.node.accessibility_caption,
-        url: `https://www.instagram.com/p/${item.node.shortcode}`,
-        likesCount: item.node.edge_media_preview_like.count,
-        commentsCount: item.node.edge_media_to_comment.count,
-        caption: item.node.edge_media_to_caption.edges && item.node.edge_media_to_caption.edges[0] && item.node.edge_media_to_caption.edges[0].node.text,
-        imageUrl: item.node.display_url,
-        videoUrl: item.node.video_url,
-        id: item.node.id,
-        mediaType: item.node.__typename ? item.node.__typename.replace('Graph', '') : (item.node.is_video ? 'Video' : 'Image'),
-        shortcode: item.node.shortcode,
-        firstComment: item.node.edge_media_to_comment.edges && item.node.edge_media_to_comment.edges[0] && item.node.edge_media_to_comment.edges[0].node.text,
-        timestamp: new Date(parseInt(item.node.taken_at_timestamp, 10) * 1000),
-        locationName: (item.node.location && item.node.location.name) || null,
-        // usable by appending https://www.instagram.com/explore/locations/ to see the location
-        locationId: (item.node.location && item.node.location.id) || null,
-        ownerId: item.owner && item.owner.id || null,
-        ownerUsername: (item.node.owner && item.node.owner.username) || null,
+        ...formatSinglePost(item.node),
     }));
 
     if (request.userData.limit) {

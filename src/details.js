@@ -45,17 +45,24 @@ const formatSinglePost = (node) => {
         caption,
         hashtags,
         mentions,
+        url: `https://www.instagram.com/p/${node.shortcode}`,
         commentsCount: comments ? comments.count : null,
         dimensionsHeight: node.dimensions.height,
         dimensionsWidth: node.dimensions.width,
         displayUrl: node.display_url,
+        videoUrl: node.video_url,
+        id: node.id,
+        firstComment: node.edge_media_to_comment.edges && node.edge_media_to_comment.edges[0] && node.edge_media_to_comment.edges[0].node.text,
         alt: node.accessibility_caption,
         likesCount: likes ? likes.count : null,
         videoDuration: node.video_duration,
         videoViewCount: node.video_view_count,
         timestamp: node.taken_at_timestamp ? new Date(parseInt(node.taken_at_timestamp, 10) * 1000) : null,
         locationName: node.location ? node.location.name : null,
+        locationId: node.location ? node.location.id : null,
         ownerFullName: node.owner ? node.owner.full_name : null,
+        ownerUsername: node.owner ? node.owner.username : null,
+        ownerId: node.owner ? node.owner.id : null,
     };
 };
 
@@ -193,4 +200,5 @@ const scrapeDetails = async ({ input, request, itemSpec, entryData, page, proxy,
 
 module.exports = {
     scrapeDetails,
+    formatSinglePost,
 };
