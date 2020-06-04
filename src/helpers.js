@@ -287,7 +287,7 @@ async function filterPushedItemsAndUpdateState ({ items, itemSpec, parsingFn, sc
     }
     if (type === 'posts') {
         if (itemSpec.input.expandOwners && itemSpec.pageType !== PAGE_TYPES.PROFILE) {
-            itemsToPush = await expandOwnerDetails(itemsToPush, page, itemSpec);
+            itemsToPush = await require('./user-details').expandOwnerDetails(itemsToPush, page, itemSpec);
         }
 
         // I think this feature was added by Tin and it could possibly increase the runtime by A LOT

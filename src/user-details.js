@@ -1,16 +1,13 @@
 const Apify = require('apify');
 const { QUERY_IDS } = require('./query_ids');
-console.log(require.resolve('./helpers'))
-const helpers = require('./helpers');
-console.log('helpers')
-console.dir(helpers)
-const { log, singleQuery } = helpers;
 
 const { postQueryId } = QUERY_IDS;
 
 const users = {};
 
 async function expandOwnerDetails(posts, page, itemSpec) {
+    // We have to require it here because of circular dependency
+    const { log, singleQuery } = require('./helpers');
     log(itemSpec, `Owner details - Expanding details for ${posts.length} items.`);
     const defaultVariables = { child_comment_count: 3, fetch_comment_count: 40, parent_comment_count: 24, has_threaded_comments: true };
     const transformFunction = (data) => {
@@ -51,3 +48,4 @@ async function expandOwnerDetails(posts, page, itemSpec) {
 module.exports = {
     expandOwnerDetails,
 };
+
