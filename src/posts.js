@@ -7,26 +7,6 @@ const { getPosts } = require('./posts_graphql');
 const initData = {};
 const posts = {};
 
-const goNextPage = (userData, lastPost, currentLength) => {
-    const postDate = new Date(parseInt(lastPost.node.taken_at_timestamp, 10) * 1000);
-    let willContinue = true;
-    if (userData.scrapePostsUntilDate) {
-        // We want to continue scraping (return true) if the scrapePostsUntilDate is older (smaller) than the date of the last post
-        // Don't forget we scrape from the most recent ones to the past
-        const scrapePostsUntilDate = new Date(userData.scrapePostsUntilDate);
-        willContinue = scrapePostsUntilDate < postDate;
-        if (!willContinue) {
-            console.warn(`Reached post with older date than our limit: ${postDate}. Finishing scrolling...`);
-        }
-    } else {
-        willContinue = (currentLength < userData.limit);
-        if (!willContinue) {
-            console.warn(`Reached our posts max limit: ${userData.limit}. Finishing scrolling...`);
-        }
-    }
-    return willContinue;
-};
-
 /**
  * Takes type of page and data loaded through GraphQL and outputs
  * correct list of posts based on the page type.
@@ -182,9 +162,24 @@ const finiteScroll = async (pageData, page, request) => {
 
     await page.waitFor(1500); // prevent rate limited error
 
-    if (goNextPage(request.userData, posts[pageData.id].slice(-1)[0], posts[pageData.id].length)) {
+    if (checkLastPostDate(request.userData, posts[pageData.id].slice(-1)[0])) {
         await finiteScroll(pageData, page, request);
     }
+};
+
+const checkLastPostDate = (userData, lastPostDate) => {
+    const postDate = new Date(lastPostDate);
+    let willContinue = true;
+    if (userData.scrapePostsUntilDate) {
+        // We want to continue scraping (return true) if the scrapePostsUntilDate is older (smaller) than the date of the last post
+        // Don't forget we scrape from the most recent ones to the past
+        const scrapePostsUntilDate = new Date(userData.scrapePostsUntilDate);
+        willContinue = scrapePostsUntilDate < postDate;
+        if (!willContinue) {
+            console.warn(`Reached post with older date than our limit: ${postDate}. Finishing scrolling...`);
+        }
+    }
+    return willContinue;
 };
 
 const scrapePost = (request, itemSpec, entryData) => {
@@ -217,7 +212,7 @@ const scrapePost = (request, itemSpec, entryData) => {
  * @param {Object} entryData data from window._shared_data.entry_data
  * @param {Object} input Input provided by user
  */
-const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, input }) => {
+const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, input, scrollingState }) => {
     const timeline = getPostsFromEntryData(itemSpec.pageType, entryData);
     initData[itemSpec.id] = timeline;
 
@@ -254,33 +249,7 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
     if (itemSpec.userUsername) filteredItemSpec.queryUsername = itemSpec.userUsername;
     if (itemSpec.locationName) filteredItemSpec.queryLocation = itemSpec.locationName;
 
-    let output = posts[itemSpec.id].map(item => ({
-        '#debug': {
-            ...Apify.utils.createRequestDebugInfo(request),
-            ...itemSpec,
-            shortcode: item.node.shortcode,
-            postLocationId: (item.node.location && item.node.location.id) || null,
-            postOwnerId: (item.node.owner && item.node.owner.id) || null,
-        },
-        ...filteredItemSpec,
-        alt: item.node.accessibility_caption,
-        url: `https://www.instagram.com/p/${item.node.shortcode}`,
-        likesCount: item.node.edge_media_preview_like.count,
-        commentsCount: item.node.edge_media_to_comment.count,
-        caption: item.node.edge_media_to_caption.edges && item.node.edge_media_to_caption.edges[0] && item.node.edge_media_to_caption.edges[0].node.text,
-        imageUrl: item.node.display_url,
-        videoUrl: item.node.video_url,
-        id: item.node.id,
-        mediaType: item.node.__typename ? item.node.__typename.replace('Graph', '') : (item.node.is_video ? 'Video' : 'Image'),
-        shortcode: item.node.shortcode,
-        firstComment: item.node.edge_media_to_comment.edges && item.node.edge_media_to_comment.edges[0] && item.node.edge_media_to_comment.edges[0].node.text,
-        timestamp: new Date(parseInt(item.node.taken_at_timestamp, 10) * 1000),
-        locationName: (item.node.location && item.node.location.name) || null,
-        // usable by appending https://www.instagram.com/explore/locations/ to see the location
-        locationId: (item.node.location && item.node.location.id) || null,
-        ownerId: item.owner && item.owner.id || null,
-        ownerUsername: (item.node.owner && item.node.owner.username) || null,
-    }));
+    let output = parsePostsForOutput(posts[itemSpec.id]);
 
     if (request.userData.limit) {
         output = output.slice(0, request.userData.limit);
@@ -335,6 +304,36 @@ async function handlePostsGraphQLResponse(page, response) {
     // await Apify.pushData(output);
     // log(itemSpec, `${output.length} items saved, task finished`);
     log(page.itemSpec, `${timeline.posts.length} posts added, ${posts[page.itemSpec.id].length} posts total`);
+}
+
+function parsePostsForOutput (posts, itemSpec, currentScrollingPosition) {
+    return posts.map(item => ({
+        '#debug': {
+            ...Apify.utils.createRequestDebugInfo(request),
+            ...itemSpec,
+            shortcode: item.node.shortcode,
+            postLocationId: (item.node.location && item.node.location.id) || null,
+            postOwnerId: (item.node.owner && item.node.owner.id) || null,
+        },
+        ...filteredItemSpec,
+        alt: item.node.accessibility_caption,
+        url: `https://www.instagram.com/p/${item.node.shortcode}`,
+        likesCount: item.node.edge_media_preview_like.count,
+        commentsCount: item.node.edge_media_to_comment.count,
+        caption: item.node.edge_media_to_caption.edges && item.node.edge_media_to_caption.edges[0] && item.node.edge_media_to_caption.edges[0].node.text,
+        imageUrl: item.node.display_url,
+        videoUrl: item.node.video_url,
+        id: item.node.id,
+        mediaType: item.node.__typename ? item.node.__typename.replace('Graph', '') : (item.node.is_video ? 'Video' : 'Image'),
+        shortcode: item.node.shortcode,
+        firstComment: item.node.edge_media_to_comment.edges && item.node.edge_media_to_comment.edges[0] && item.node.edge_media_to_comment.edges[0].node.text,
+        timestamp: new Date(parseInt(item.node.taken_at_timestamp, 10) * 1000),
+        locationName: (item.node.location && item.node.location.name) || null,
+        // usable by appending https://www.instagram.com/explore/locations/ to see the location
+        locationId: (item.node.location && item.node.location.id) || null,
+        ownerId: item.owner && item.owner.id || null,
+        ownerUsername: (item.node.owner && item.node.owner.username) || null,
+    }))
 }
 
 module.exports = {

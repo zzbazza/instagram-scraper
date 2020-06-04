@@ -234,6 +234,65 @@ function parseCaption (caption) {
     return { hashtags, mentions };
 }
 
+// items can be posts or commets from scrolling
+function filterPushedItemsAndUpdateState ({ items, itemSpec, parsingFn, scrollingState }) {
+    if (!scrollingState[itemSpec.id]) {
+        scrollingState[itemSpec.id] = {
+            allDuplicates: false,
+            ids: {},
+        };
+    }
+    const currentScrollingPosition = Object.keys(scrollingState[itemSpec.id]).length;
+    const parsedItems = parsingFn(items, itemSpec, currentScrollingPosition);
+    const itemsToPush = [];
+    for (const item of parsedItems) {
+        if (!scrollingState[itemSpec.id].ids[item.id]) {
+            itemsToPush.push(item);
+            scrollingState[itemSpec.id].ids[item.id] = true;
+        } else {
+            Apify.utils.log.debug(`Item: ${item.id} was already pushed, skipping...`);
+        }
+    }
+    // We have to tell the state if we are going though duplicates so it knows it should still continue scrolling
+    if (itemsToPush.length === 0) {
+        scrollingState[itemSpec.id].allDuplicates = true;
+    } else {
+        scrollingState[itemSpec.id].allDuplicates = false;
+    }
+    return itemsToPush;
+}
+
+const finiteScroll = async (context) => {
+    const {
+        pageData,
+        page,
+        request,
+        scrollingState,
+        loadMoreFn,
+        getItemsFromGraphQLFn,
+        type,
+    } = context;
+    const oldItemCount = Object.keys(scrollingState[pageData.id].ids).length;
+    const data = await loadMoreFn(pageData, page);
+    if (data) {
+        const timeline = getItemsFromGraphQLFn(data);
+        if (!timeline.hasNextPage) return;
+    }
+
+    const itemsScrapedCount = Object.keys(scrollingState[pageData.id].ids).length;
+    const reachedLimit = itemsScrapedCount >= request.userData.limit
+    if (reachedLimit) {
+        console.warn(`Reached max results (posts or commets) limit: ${userData.limit}. Finishing scrolling...`);
+    }
+    const shouldGoNextGeneric = !reachedLimit && (itemsScrapedCount !== oldItemCount || scrollingState[pageData.id].allDuplicates);
+    if (type === 'posts') {
+        checkLastPostDate(request.userData, scrollingState[pageData.id].lastPostDate)
+    }
+    if (shouldGoNextGeneric) {
+        await finiteScroll(context);
+    }
+};
+
 module.exports = {
     getItemSpec,
     getCheckedVariable,
@@ -242,4 +301,6 @@ module.exports = {
     singleQuery,
     parseExtendOutputFunction,
     parseCaption,
+    filterPushedItemsAndUpdateState,
+    finiteScroll,
 };

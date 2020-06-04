@@ -190,7 +190,7 @@ async function main() {
         } else {
             page.itemSpec = itemSpec;
             switch (resultsType) {
-                case SCRAPE_TYPES.POSTS: return scrapePosts({ page, request, itemSpec, entryData, requestQueue, input });
+                case SCRAPE_TYPES.POSTS: return scrapePosts({ page, request, itemSpec, entryData, requestQueue, input, scrollingState });
                 case SCRAPE_TYPES.COMMENTS: return scrapeComments({ page, request, itemSpec, entryData, scrollingState });
                 case SCRAPE_TYPES.DETAILS: return scrapeDetails({ input, request, itemSpec, entryData, page, proxy, userResult });
                 default: throw new Error('Not supported');

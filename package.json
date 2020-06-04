@@ -16,10 +16,6 @@
 		"tunnel": "0.0.6",
 		"underscore": "^1.9.2"
 	},
-	"devDependencies": {
-		"@apify/eslint-config": "0.0.3",
-		"eslint": "^6.8.0"
-	},
 	"scripts": {
 		"start": "node main.js",
 		"test": "echo \"Error: no test specified\" && exit 1"
@@ -30,5 +26,6 @@
 	},
 	"author": "Jaroslav Hejlek",
 	"license": "ISC",
-	"homepage": "https://github.com/gippy/instagram-scraper"
+	"homepage": "https://github.com/gippy/instagram-scraper",
+	"devDependencies": {}
 }

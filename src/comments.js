@@ -1,5 +1,5 @@
 const Apify = require('apify');
-const { getCheckedVariable, log } = require('./helpers');
+const { getCheckedVariable, log, filterPushedItemsAndUpdateState, finiteScroll } = require('./helpers');
 const { PAGE_TYPES, GRAPHQL_ENDPOINT } = require('./consts');
 const errors = require('./errors');
 
@@ -86,13 +86,7 @@ const loadMore = async (pageData, page, retry = 0) => {
     return data;
 };
 
-/**
- * Loads data and clicks on "Load more comments" until the limit is reached or the page has no more comments
- * @param {Object} pageData
- * @param {Object} page
- * @param {Object} request
- * @param {Number} length
- */
+/*
 const finiteScroll = async ({ pageData, page, request, scrollingState, length = 0 }) => {
     const data = await loadMore(pageData, page);
     if (data) {
@@ -100,11 +94,12 @@ const finiteScroll = async ({ pageData, page, request, scrollingState, length = 
         if (!timeline.hasNextPage) return;
     }
 
-    const commentsScrapedCount = Object.keys(scrollingState[pageData.id].commentIds).length;
+    const commentsScrapedCount = Object.keys(scrollingState[pageData.id].ids).length;
     if (commentsScrapedCount < request.userData.limit && (commentsScrapedCount !== length || scrollingState[pageData.id].allDuplicates)) {
         await finiteScroll({ pageData, page, request, scrollingState, length: commentsScrapedCount });
     }
 };
+*/
 
 /**
  * Loads data from entry date and then loads comments untill limit is reached
@@ -128,8 +123,13 @@ const scrapeComments = async ({ page, request, itemSpec, entryData, scrollingSta
 
     // We want to push as soon as we have the data. We have to persist comment ids state so we don;t loose those on migration
     if (initData[itemSpec.id]) {
-        const commentsReadyToPush = filterPushedCommentsAndUpdateState({ comments: timeline.comments, itemSpec, scrollingState });
-        log(page.itemSpec, `${timeline.comments.length} comments loaded, ${Object.keys(scrollingState[itemSpec.id].commentIds).length}/${timeline.commentsCount} comments scraped`);
+        const commentsReadyToPush = filterPushedItemsAndUpdateState({
+            items: timeline.comments,
+            itemSpec,
+            parsingFn: parseCommentsForOutput,
+            scrollingState
+        });
+        log(page.itemSpec, `${timeline.comments.length} comments loaded, ${Object.keys(scrollingState[itemSpec.id].ids).length}/${timeline.commentsCount} comments scraped`);
 
         await Apify.pushData(commentsReadyToPush);
     } else {
@@ -139,11 +139,19 @@ const scrapeComments = async ({ page, request, itemSpec, entryData, scrollingSta
 
     await page.waitFor(500);
 
-    const willContinueScroll = initData[itemSpec.id].hasNextPage && Object.keys(scrollingState[itemSpec.id].commentIds).length < request.userData.limit;
+    const willContinueScroll = initData[itemSpec.id].hasNextPage && Object.keys(scrollingState[itemSpec.id].ids).length < request.userData.limit;
     // Apify.utils.log.debug(`Post ${itemSpec.id} will continue scrolling: ${willContinueScroll}`);
     if (willContinueScroll) {
         await page.waitFor(1000);
-        await finiteScroll({ pageData: itemSpec, page, request, scrollingState });
+        await finiteScroll({
+            pageData: itemSpec,
+            page,
+            request,
+            scrollingState,
+            loadMoreFn: loadMore,
+            getItemsFromGraphQLFn: getCommentsFromGraphQL,
+            type: 'comments',
+        });
     }
 };
 
@@ -170,36 +178,14 @@ async function handleCommentsGraphQLResponse({ page, response, scrollingState })
         initData[page.itemSpec.id].hasNextPage = false;
     }
 
-    const commentsReadyToPush = filterPushedCommentsAndUpdateState({ comments: timeline.comments, itemSpec: page.itemSpec, scrollingState });
-    log(page.itemSpec, `${timeline.comments.length} comments loaded, ${Object.keys(scrollingState[page.itemSpec.id].commentIds).length}/${timeline.commentsCount} comments scraped`);
+    const commentsReadyToPush = filterPushedItemsAndUpdateState({
+        items: timeline.comments,
+        itemSpec: page.itemSpec,
+        parsingFn: parseCommentsForOutput,
+        scrollingState,
+    });
+    log(page.itemSpec, `${timeline.comments.length} comments loaded, ${Object.keys(scrollingState[page.itemSpec.id].ids).length}/${timeline.commentsCount} comments scraped`);
     await Apify.pushData(commentsReadyToPush);
-}
-
-function filterPushedCommentsAndUpdateState ({ comments, itemSpec, scrollingState }) {
-    if (!scrollingState[itemSpec.id]) {
-        scrollingState[itemSpec.id] = {
-            allDuplicates: false,
-            commentIds: {},
-        };
-    }
-    const currentScrollingPosition = Object.keys(scrollingState[itemSpec.id]).length;
-    const parsedComments = parseCommentsForOutput(comments, itemSpec, currentScrollingPosition);
-    const commentsToPush = [];
-    for (const comment of parsedComments) {
-        if (!scrollingState[itemSpec.id].commentIds[comment.id]) {
-            commentsToPush.push(comment);
-            scrollingState[itemSpec.id].commentIds[comment.id] = true;
-        } else {
-            Apify.utils.log.debug(`Comment: ${comment.id} was already pushed, skipping...`);
-        }
-    }
-    // We have to tell the state if we are going though duplicates so it knows it should still continue scrolling
-    if (commentsToPush.length === 0) {
-        scrollingState[itemSpec.id].allDuplicates = true;
-    } else {
-        scrollingState[itemSpec.id].allDuplicates = false;
-    }
-    return commentsToPush;
 }
 
 function parseCommentsForOutput (comments, itemSpec, currentScrollingPosition) {
