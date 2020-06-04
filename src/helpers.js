@@ -6,6 +6,7 @@ const safeEval = require('safe-eval');
 const { URLSearchParams } = require('url');
 const errors = require('./errors');
 const consts = require('./consts');
+const { expandOwnerDetails } = require('./user-details');
 
 const { PAGE_TYPES } = consts;
 
@@ -96,9 +97,9 @@ const getCheckedVariable = (pageType) => {
  * @param {Object} pageData Parsed page data
  * @param {String} message Message to be outputed
  */
-const log = (pageData, message) => {
+function log (pageData, message) {
     const label = getLogLabel(pageData);
-    return Apify.utils.log.info(`${label}: ${message}`);
+    Apify.utils.log.info(`${label}: ${message}`);
 };
 
 const grapqlEndpoint = 'https://www.instagram.com/graphql/query/';
@@ -201,8 +202,8 @@ async function finiteQuery(queryId, variables, nodeTransformationFunc, limit, pa
     return results.slice(0, limit);
 }
 
-async function singleQuery(queryId, variables, nodeTransformationFunc, page, input, itemSpec, logPrefix) {
-    const gotParams = await getGotParams(page, input);
+async function singleQuery(queryId, variables, nodeTransformationFunc, page, itemSpec, logPrefix) {
+    const gotParams = await getGotParams(page, itemSpec.input);
     const searchParams = new URLSearchParams([['query_hash', queryId], ['variables', JSON.stringify(variables)]]);
     return query(gotParams, searchParams, nodeTransformationFunc, itemSpec, logPrefix);
 }
@@ -234,18 +235,43 @@ function parseCaption (caption) {
     return { hashtags, mentions };
 }
 
-// items can be posts or commets from scrolling
-function filterPushedItemsAndUpdateState ({ items, itemSpec, parsingFn, scrollingState }) {
+function hasReachedLastPostDate (scrapePostsUntilDate, lastPostDate) {
+    const lastPostDateAsDate = new Date(lastPostDate);
+    if (scrapePostsUntilDate) {
+        // We want to continue scraping (return true) if the scrapePostsUntilDate is older (smaller) than the date of the last post
+        // Don't forget we scrape from the most recent ones to the past
+        scrapePostsUntilDateAsDate = new Date(scrapePostsUntilDate);
+        const willContinue = scrapePostsUntilDateAsDate < lastPostDateAsDate;
+        if (!willContinue) {
+            console.warn(`Reached post with older date than our limit: ${lastPostDateAsDate}. Finishing scrolling...`);
+            console.log('returning true');
+            return true;
+        }
+    }
+    return false;
+};
+
+// Ttems can be posts or commets from scrolling
+async function filterPushedItemsAndUpdateState ({ items, itemSpec, parsingFn, scrollingState, type, page }) {
     if (!scrollingState[itemSpec.id]) {
         scrollingState[itemSpec.id] = {
             allDuplicates: false,
             ids: {},
         };
     }
-    const currentScrollingPosition = Object.keys(scrollingState[itemSpec.id]).length;
+    const { limit, scrapePostsUntilDate } = itemSpec;
+    const currentScrollingPosition = Object.keys(scrollingState[itemSpec.id].ids).length;
     const parsedItems = parsingFn(items, itemSpec, currentScrollingPosition);
-    const itemsToPush = [];
+    let itemsToPush = [];
     for (const item of parsedItems) {
+        if (Object.keys(scrollingState[itemSpec.id].ids).length >= limit) {
+            Apify.utils.log.info(`Item: ${item.id} reached limit of ${limit} results, stopping...`);
+            break;
+        }
+        if (scrapePostsUntilDate && hasReachedLastPostDate(scrapePostsUntilDate, item.timestamp)) {
+            scrollingState[itemSpec.id].reachedLastPostDate = true;
+            break;
+        }
         if (!scrollingState[itemSpec.id].ids[item.id]) {
             itemsToPush.push(item);
             scrollingState[itemSpec.id].ids[item.id] = true;
@@ -259,46 +285,47 @@ function filterPushedItemsAndUpdateState ({ items, itemSpec, parsingFn, scrollin
     } else {
         scrollingState[itemSpec.id].allDuplicates = false;
     }
+    if (type === 'posts') {
+        if (itemSpec.input.expandOwners && itemSpec.pageType !== PAGE_TYPES.PROFILE) {
+            itemsToPush = await expandOwnerDetails(itemsToPush, page, itemSpec);
+        }
+
+        // I think this feature was added by Tin and it could possibly increase the runtime by A LOT
+        // It should be opt-in. Also needs to refactored!
+        /*
+        for (const post of output) {
+            if (itemSpec.pageType !== PAGE_TYPES.PROFILE && (post.locationName === null || post.ownerUsername === null)) {
+                // Try to scrape at post detail
+                await requestQueue.addRequest({ url: post.url, userData: { label: 'postDetail' } });
+            } else {
+                await Apify.pushData(post);
+            }
+        }
+        */
+    }
     return itemsToPush;
 }
 
-const checkLastPostDate = (userData, lastPostDate) => {
-    const postDate = new Date(lastPostDate);
-    let willContinue = true;
-    if (userData.scrapePostsUntilDate) {
-        // We want to continue scraping (return true) if the scrapePostsUntilDate is older (smaller) than the date of the last post
-        // Don't forget we scrape from the most recent ones to the past
-        const scrapePostsUntilDate = new Date(userData.scrapePostsUntilDate);
-        willContinue = scrapePostsUntilDate < postDate;
-        if (!willContinue) {
-            console.warn(`Reached post with older date than our limit: ${postDate}. Finishing scrolling...`);
-        }
-    }
-    return willContinue;
-};
-
-const shouldContinueScrolling = ({ userData, scrollingState, itemSpec, oldItemCount, type }) => {
+const shouldContinueScrolling = ({ scrollingState, itemSpec, oldItemCount, type }) => {
     if (type === 'posts') {
-        const shouldContinuePosts = checkLastPostDate(userData, scrollingState[itemSpec.id].lastPostDate);
-        if (!shouldContinuePosts) {
+        if (scrollingState[itemSpec.id].reachedLastPostDate) {
             return false;
         }
     }
 
     const itemsScrapedCount = Object.keys(scrollingState[itemSpec.id].ids).length;
-    const reachedLimit = itemsScrapedCount >= userData.limit
+    const reachedLimit = itemsScrapedCount >= itemSpec.limit
     if (reachedLimit) {
-        console.warn(`Reached max results (posts or commets) limit: ${userData.limit}. Finishing scrolling...`);
+        console.warn(`Reached max results (posts or commets) limit: ${itemSpec.limit}. Finishing scrolling...`);
     }
     const shouldGoNextGeneric = !reachedLimit && (itemsScrapedCount !== oldItemCount || scrollingState[itemSpec.id].allDuplicates);
-
+    return shouldGoNextGeneric;
 }
 
 const finiteScroll = async (context) => {
     const {
         itemSpec,
         page,
-        userData,
         scrollingState,
         loadMoreFn,
         getItemsFromGraphQLFn,
@@ -307,13 +334,13 @@ const finiteScroll = async (context) => {
     const oldItemCount = Object.keys(scrollingState[itemSpec.id].ids).length;
     const data = await loadMoreFn(itemSpec, page);
     if (data) {
-        const timeline = getItemsFromGraphQLFn(data);
+        const timeline = getItemsFromGraphQLFn({ data, pageType: itemSpec.pageType });
         if (!timeline.hasNextPage) return;
     }
 
     await page.waitFor(200);
 
-    const doContinue = shouldContinueScrolling({ userData, scrollingState, itemSpec, oldItemCount, type })
+    const doContinue = shouldContinueScrolling({ scrollingState, itemSpec, oldItemCount, type })
 
     if (doContinue) {
         await finiteScroll(context);
@@ -330,4 +357,5 @@ module.exports = {
     parseCaption,
     filterPushedItemsAndUpdateState,
     finiteScroll,
+    shouldContinueScrolling,
 };

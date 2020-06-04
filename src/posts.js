@@ -1,11 +1,8 @@
 const Apify = require('apify');
-const { getCheckedVariable, log, finiteScroll, filterPushedItemsAndUpdateState } = require('./helpers');
+const { getCheckedVariable, log, finiteScroll, filterPushedItemsAndUpdateState, shouldContinueScrolling } = require('./helpers');
 const { PAGE_TYPES, GRAPHQL_ENDPOINT } = require('./consts');
-const { expandOwnerDetails } = require('./user_details');
-const { getPosts } = require('./posts_graphql');
 
 const initData = {};
-const posts = {};
 
 /**
  * Takes type of page and data loaded through GraphQL and outputs
@@ -13,7 +10,7 @@ const posts = {};
  * @param {String} pageType Type of page we are scraping posts from
  * @param {Object} data GraphQL data
  */
-const getPostsFromGraphQL = (pageType, data) => {
+const getPostsFromGraphQL = ({ pageType, data }) => {
     let timeline;
     switch (pageType) {
         case PAGE_TYPES.PLACE:
@@ -30,7 +27,7 @@ const getPostsFromGraphQL = (pageType, data) => {
     const postItems = timeline ? timeline.edges : [];
     const hasNextPage = timeline ? timeline.page_info.has_next_page : false;
     const postsCount = timeline ? timeline.count : null;
-    return { posts: postItems, hasNextPage };
+    return { posts: postItems, hasNextPage, postsCount };
 };
 
 /**
@@ -55,7 +52,7 @@ const getPostsFromEntryData = (pageType, data) => {
     }
     if (!pageData || !pageData.length) return null;
 
-    return getPostsFromGraphQL(pageType, pageData[0].graphql);
+    return getPostsFromGraphQL({ pageType, data: pageData[0].graphql });
 };
 
 /**
@@ -147,21 +144,6 @@ const loadMore = async (pageData, page, retry = 0) => {
     return data;
 };
 
-/*
-const finiteScroll = async (pageData, page, request) => {
-    const data = await loadMore(pageData, page);
-    if (data) {
-        const timeline = getPostsFromGraphQL(pageData.pageType, data);
-        if (!timeline.hasNextPage) return;
-    }
-
-    await page.waitFor(1500); // prevent rate limited error
-
-    if (checkLastPostDate(request.userData, posts[pageData.id].slice(-1)[0])) {
-        await finiteScroll(pageData, page, request);
-    }
-};
-*/
 
 const scrapePost = (request, itemSpec, entryData) => {
     const item = entryData.PostPage[0].graphql.shortcode_media;
@@ -193,30 +175,32 @@ const scrapePost = (request, itemSpec, entryData) => {
  * @param {Object} entryData data from window._shared_data.entry_data
  * @param {Object} input Input provided by user
  */
-const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, input, scrollingState }) => {
+const scrapePosts = async ({ page, itemSpec, entryData, scrollingState }) => {
     const timeline = getPostsFromEntryData(itemSpec.pageType, entryData);
     initData[itemSpec.id] = timeline;
 
     // Check if the posts loaded properly
-    const el = await page.$('.ySN3v');
-    if (!el) {
-        throw new Error("Posts didn't load properly, opening again");
+    if (itemSpec.pageType === PAGE_TYPES.PROFILE) {
+        const profilePageSel = '.ySN3v';
+        const el = await page.$(`${profilePageSel}`);
+        if (!el) {
+            throw new Error("Posts didn't load properly, opening again");
+        }
     }
 
     if (initData[itemSpec.id]) {
-        /*
-        posts[itemSpec.id] = timeline.posts;
-        log(page.itemSpec, `${timeline.posts.length} posts added, ${posts[page.itemSpec.id].length} posts total`);
-        */
-
-        const postsReadyToPush = filterPushedItemsAndUpdateState({
+        const postsReadyToPush = await filterPushedItemsAndUpdateState({
             items: timeline.posts,
             itemSpec,
             parsingFn: parsePostsForOutput,
-            scrollingState
+            scrollingState,
+            type: 'posts',
+            page,
         });
         // We save last date for the option to specify how far into the past we should scroll
-        scrollingState[itemSpec.id].lastPostDate = postsReadyToPush[postsReadyToPush.length - 1].timestamp;
+        if (postsReadyToPush.length > 0) {
+            scrollingState[itemSpec.id].lastPostDate = postsReadyToPush[postsReadyToPush.length - 1].timestamp;
+        }
 
         log(page.itemSpec, `${timeline.posts.length} posts loaded, ${Object.keys(scrollingState[itemSpec.id].ids).length}/${timeline.postsCount} posts scraped`);
         await Apify.pushData(postsReadyToPush);
@@ -233,19 +217,12 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
         : true;
 
     if (initData[itemSpec.id].hasNextPage && hasMostRecentPostsOnHashtagPage) {
-        // TODO: Refactor this check out
-        const itemsScrapedCount = Object.keys(scrollingState[itemSpec.id].ids).length;
-        const reachedLimit = itemsScrapedCount >= request.userData.limit
-        if (reachedLimit) {
-            console.warn(`Reached max results (posts or commets) limit: ${userData.limit}. Finishing scrolling...`);
-        }
-        const shouldGoNextGeneric = !reachedLimit && (itemsScrapedCount !== oldItemCount || scrollingState[itemSpec.id].allDuplicates);
-        if (goNextPage(request.userData, timeline.posts.slice(-1)[0], posts[itemSpec.id].length)) {
+        const shouldContinue = shouldContinueScrolling({ itemSpec, scrollingState, oldItemCount: 0, type: 'posts' });
+        if (shouldContinue) {
             await page.waitFor(1000);
             await finiteScroll({
-                pageData: itemSpec,
+                itemSpec,
                 page,
-                request,
                 scrollingState,
                 loadMoreFn: loadMore,
                 getItemsFromGraphQLFn: getPostsFromGraphQL,
@@ -253,36 +230,6 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
             });
         }
     }
-
-    const filteredItemSpec = {};
-    if (itemSpec.tagName) filteredItemSpec.queryTag = itemSpec.tagName;
-    if (itemSpec.userUsername) filteredItemSpec.queryUsername = itemSpec.userUsername;
-    if (itemSpec.locationName) filteredItemSpec.queryLocation = itemSpec.locationName;
-
-    let output = parsePostsForOutput(posts[itemSpec.id]);
-
-    if (request.userData.limit) {
-        output = output.slice(0, request.userData.limit);
-    }
-    if (request.userData.scrapePostsUntilDate) {
-        const scrapePostsUntilDate = new Date(request.userData.scrapePostsUntilDate);
-        output = output.filter((item) => item.timestamp > scrapePostsUntilDate);
-    }
-
-    if (input.expandOwners && itemSpec.pageType !== PAGE_TYPES.PROFILE) {
-        output = await expandOwnerDetails(output, page, input, itemSpec);
-    }
-
-    for (const post of output) {
-        if (itemSpec.pageType !== PAGE_TYPES.PROFILE && (post.locationName === null || post.ownerUsername === null)) {
-            // Try to scrape at post detail
-            await requestQueue.addRequest({ url: post.url, userData: { label: 'postDetail' } });
-        } else {
-            await Apify.pushData(post);
-        }
-    }
-
-    log(itemSpec, `${output.length} items saved, task finished`);
 };
 
 /**
@@ -291,41 +238,54 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
  * @param {Object} page Puppeteer Page object
  * @param {Object} response Puppeteer Response object
  */
-async function handlePostsGraphQLResponse(page, response) {
+async function handlePostsGraphQLResponse({ page, response, scrollingState }) {
     const responseUrl = response.url();
 
+    const { itemSpec } = page;
+
     // Get variable we look for in the query string of request
-    const checkedVariable = getCheckedVariable(page.itemSpec.pageType);
+    const checkedVariable = getCheckedVariable(itemSpec.pageType);
 
     // Skip queries for other stuff then posts
     if (!responseUrl.includes(checkedVariable) || !responseUrl.includes('%22first%22')) return;
 
     const data = await response.json();
 
-    const timeline = getPostsFromGraphQL(page.itemSpec.pageType, data.data);
+    const timeline = getPostsFromGraphQL({ pageType: itemSpec.pageType, data: data.data });
 
-    posts[page.itemSpec.id] = posts[page.itemSpec.id].concat(timeline.posts);
-
-    if (!initData[page.itemSpec.id]) initData[page.itemSpec.id] = timeline;
-    else if (initData[page.itemSpec.id].hasNextPage && !timeline.hasNextPage) {
-        initData[page.itemSpec.id].hasNextPage = false;
+    if (!initData[itemSpec.id]) initData[itemSpec.id] = timeline;
+    else if (initData[itemSpec.id].hasNextPage && !timeline.hasNextPage) {
+        initData[itemSpec.id].hasNextPage = false;
     }
 
-    // await Apify.pushData(output);
-    // log(itemSpec, `${output.length} items saved, task finished`);
-    log(page.itemSpec, `${timeline.posts.length} posts added, ${posts[page.itemSpec.id].length} posts total`);
+    const postsReadyToPush = await filterPushedItemsAndUpdateState({
+        items: timeline.posts,
+        itemSpec,
+        parsingFn: parsePostsForOutput,
+        scrollingState,
+        type: 'posts',
+        page,
+    });
+    // We save last date for the option to specify how far into the past we should scroll
+    if (postsReadyToPush.length > 0) {
+        scrollingState[itemSpec.id].lastPostDate = postsReadyToPush[postsReadyToPush.length - 1].timestamp;
+    }
+
+    log(itemSpec, `${timeline.posts.length} posts loaded, ${Object.keys(scrollingState[itemSpec.id].ids).length}/${timeline.postsCount} posts scraped`);
+    await Apify.pushData(postsReadyToPush);
 }
 
 function parsePostsForOutput (posts, itemSpec, currentScrollingPosition) {
-    return posts.map(item => ({
+    return posts.map((item, index) => ({
         '#debug': {
-            ...Apify.utils.createRequestDebugInfo(request),
             ...itemSpec,
             shortcode: item.node.shortcode,
             postLocationId: (item.node.location && item.node.location.id) || null,
             postOwnerId: (item.node.owner && item.node.owner.id) || null,
         },
-        ...filteredItemSpec,
+        queryTag: itemSpec.tagName,
+        queryUsername: itemSpec.userUsername,
+        queryLocation: itemSpec.locationName,
         alt: item.node.accessibility_caption,
         url: `https://www.instagram.com/p/${item.node.shortcode}`,
         likesCount: item.node.edge_media_preview_like.count,
@@ -334,6 +294,7 @@ function parsePostsForOutput (posts, itemSpec, currentScrollingPosition) {
         imageUrl: item.node.display_url,
         videoUrl: item.node.video_url,
         id: item.node.id,
+        position: currentScrollingPosition + 1 + index,
         mediaType: item.node.__typename ? item.node.__typename.replace('Graph', '') : (item.node.is_video ? 'Video' : 'Image'),
         shortcode: item.node.shortcode,
         firstComment: item.node.edge_media_to_comment.edges && item.node.edge_media_to_comment.edges[0] && item.node.edge_media_to_comment.edges[0].node.text,

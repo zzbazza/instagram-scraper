@@ -1,12 +1,16 @@
 const Apify = require('apify');
-const { log, singleQuery } = require('./helpers');
 const { QUERY_IDS } = require('./query_ids');
+console.log(require.resolve('./helpers'))
+const helpers = require('./helpers');
+console.log('helpers')
+console.dir(helpers)
+const { log, singleQuery } = helpers;
 
 const { postQueryId } = QUERY_IDS;
 
 const users = {};
 
-async function expandOwnerDetails(posts, page, input, itemSpec) {
+async function expandOwnerDetails(posts, page, itemSpec) {
     log(itemSpec, `Owner details - Expanding details for ${posts.length} items.`);
     const defaultVariables = { child_comment_count: 3, fetch_comment_count: 40, parent_comment_count: 24, has_threaded_comments: true };
     const transformFunction = (data) => {
@@ -27,11 +31,10 @@ async function expandOwnerDetails(posts, page, input, itemSpec) {
             continue;
         }
         const owner = await singleQuery(
-            postQueryId, 
+            postQueryId,
             { shortcode: posts[i]['#debug'].shortcode, ...defaultVariables },
             transformFunction,
             page,
-            input,
             itemSpec,
             'Owner details',
         );

@@ -10,7 +10,7 @@ const initData = {};
  * correct list of comments.
  * @param {Object} data GraphQL data
  */
-const getCommentsFromGraphQL = (data) => {
+const getCommentsFromGraphQL = ({ data }) => {
     const timeline = data.shortcode_media.edge_media_to_parent_comment;
     const commentItems = timeline ? timeline.edges.reverse() : [];
     const commentsCount = timeline ? timeline.count : null;
@@ -93,7 +93,7 @@ const loadMore = async (pageData, page, retry = 0) => {
  * @param {Object} itemSpec Parsed page data
  * @param {Object} entryData data from window._shared_data.entry_data
  */
-const scrapeComments = async ({ page, request, itemSpec, entryData, scrollingState }) => {
+const scrapeComments = async ({ page, itemSpec, entryData, scrollingState }) => {
     // Check that current page is of a type which has comments
     if (itemSpec.pageType !== PAGE_TYPES.POST) throw errors.notPostPage();
 
@@ -103,16 +103,16 @@ const scrapeComments = async ({ page, request, itemSpec, entryData, scrollingSta
         throw new Error(`Post page didn't load properly, opening again`);
     }
 
-    const timeline = getCommentsFromGraphQL(entryData.PostPage[0].graphql);
+    const timeline = getCommentsFromGraphQL({ data: entryData.PostPage[0].graphql });
     initData[itemSpec.id] = timeline;
 
     // We want to push as soon as we have the data. We have to persist comment ids state so we don;t loose those on migration
     if (initData[itemSpec.id]) {
-        const commentsReadyToPush = filterPushedItemsAndUpdateState({
+        const commentsReadyToPush = await filterPushedItemsAndUpdateState({
             items: timeline.comments,
             itemSpec,
             parsingFn: parseCommentsForOutput,
-            scrollingState
+            scrollingState,
         });
         log(page.itemSpec, `${timeline.comments.length} comments loaded, ${Object.keys(scrollingState[itemSpec.id].ids).length}/${timeline.commentsCount} comments scraped`);
 
@@ -124,14 +124,12 @@ const scrapeComments = async ({ page, request, itemSpec, entryData, scrollingSta
 
     await page.waitFor(500);
 
-    const willContinueScroll = initData[itemSpec.id].hasNextPage && Object.keys(scrollingState[itemSpec.id].ids).length < request.userData.limit;
-    // Apify.utils.log.debug(`Post ${itemSpec.id} will continue scrolling: ${willContinueScroll}`);
+    const willContinueScroll = initData[itemSpec.id].hasNextPage && Object.keys(scrollingState[itemSpec.id].ids).length < itemSpec.limit;
     if (willContinueScroll) {
         await page.waitFor(1000);
         await finiteScroll({
             itemSpec,
             page,
-            userData: request.userData,
             scrollingState,
             loadMoreFn: loadMore,
             getItemsFromGraphQLFn: getCommentsFromGraphQL,
@@ -145,7 +143,7 @@ const scrapeComments = async ({ page, request, itemSpec, entryData, scrollingSta
  * @param {Object} page Puppeteer Page object
  * @param {Object} response Puppeteer Response object
  */
-async function handleCommentsGraphQLResponse({ page, response, scrollingState }) {
+async function handleCommentsGraphQLResponse({ page, response, scrollingState, limit }) {
     const responseUrl = response.url();
 
     // Get variable we look for in the query string of request
@@ -155,7 +153,7 @@ async function handleCommentsGraphQLResponse({ page, response, scrollingState })
     if (!responseUrl.includes(checkedVariable) || !responseUrl.includes('%22first%22')) return;
 
     const data = await response.json();
-    const timeline = getCommentsFromGraphQL(data.data);
+    const timeline = getCommentsFromGraphQL({ data: data.data });
 
     if (!initData[page.itemSpec.id]) {
         initData[page.itemSpec.id] = timeline;
@@ -163,11 +161,12 @@ async function handleCommentsGraphQLResponse({ page, response, scrollingState })
         initData[page.itemSpec.id].hasNextPage = false;
     }
 
-    const commentsReadyToPush = filterPushedItemsAndUpdateState({
+    const commentsReadyToPush = await filterPushedItemsAndUpdateState({
         items: timeline.comments,
         itemSpec: page.itemSpec,
         parsingFn: parseCommentsForOutput,
         scrollingState,
+        limit,
     });
     log(page.itemSpec, `${timeline.comments.length} comments loaded, ${Object.keys(scrollingState[page.itemSpec.id].ids).length}/${timeline.commentsCount} comments scraped`);
     await Apify.pushData(commentsReadyToPush);
