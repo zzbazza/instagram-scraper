@@ -21,7 +21,7 @@ const goNextPage = (userData, lastPost, currentLength) => {
     } else {
         willContinue = (currentLength < userData.limit);
         if (!willContinue) {
-            console.warn(`Reached our posts max limit: ${limit}. Finishing scrolling...`);
+            console.warn(`Reached our posts max limit: ${userData.limit}. Finishing scrolling...`);
         }
     }
     return willContinue;
@@ -221,6 +221,12 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
     const timeline = getPostsFromEntryData(itemSpec.pageType, entryData);
     initData[itemSpec.id] = timeline;
 
+    // Check if the posts loaded properly
+    const el = await page.$('.ySN3v');
+    if (!el) {
+        throw new Error("Posts didn't load properly, opening again");
+    }
+
     if (initData[itemSpec.id]) {
         posts[itemSpec.id] = timeline.posts;
         log(page.itemSpec, `${timeline.posts.length} posts added, ${posts[page.itemSpec.id].length} posts total`);
@@ -263,7 +269,9 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
         commentsCount: item.node.edge_media_to_comment.count,
         caption: item.node.edge_media_to_caption.edges && item.node.edge_media_to_caption.edges[0] && item.node.edge_media_to_caption.edges[0].node.text,
         imageUrl: item.node.display_url,
+        videoUrl: item.node.video_url,
         id: item.node.id,
+        mediaType: item.node.__typename ? item.node.__typename.replace('Graph', '') : (item.node.is_video ? 'Video' : 'Image'),
         shortcode: item.node.shortcode,
         firstComment: item.node.edge_media_to_comment.edges && item.node.edge_media_to_comment.edges[0] && item.node.edge_media_to_comment.edges[0].node.text,
         timestamp: new Date(parseInt(item.node.taken_at_timestamp, 10) * 1000),
