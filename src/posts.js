@@ -221,6 +221,12 @@ const scrapePosts = async ({ page, request, itemSpec, entryData, requestQueue, i
     const timeline = getPostsFromEntryData(itemSpec.pageType, entryData);
     initData[itemSpec.id] = timeline;
 
+    // Check if the posts loaded properly
+    const el = await page.$('.ySN3v');
+    if (!el) {
+        throw new Error("Posts didn't load properly, opening again");
+    }
+
     if (initData[itemSpec.id]) {
         posts[itemSpec.id] = timeline.posts;
         log(page.itemSpec, `${timeline.posts.length} posts added, ${posts[page.itemSpec.id].length} posts total`);
