@@ -228,8 +228,8 @@ function parseCaption (caption) {
     }
     // TODO: Figure out more precise regexes
     // \w doesn't work because we might get non ASCI characters
-    const HASHTAG_REGEX = /#[\S]+\b/g
-    const MENTION_REGEX = /@[\S]+\b/g
+    const HASHTAG_REGEX = /#[\S]+?\b/g
+    const MENTION_REGEX = /@[\S]+?\b/g
     const hashtags = (caption.match(HASHTAG_REGEX) || []).map((hashtag) => hashtag.replace('#', ''));
     const mentions = (caption.match(MENTION_REGEX) || []).map((mention) => mention.replace('@', ''));
     return { hashtags, mentions };
@@ -287,7 +287,7 @@ async function filterPushedItemsAndUpdateState ({ items, itemSpec, parsingFn, sc
     }
     if (type === 'posts') {
         if (itemSpec.input.expandOwners && itemSpec.pageType !== PAGE_TYPES.PROFILE) {
-            itemsToPush = await require('./user-details').expandOwnerDetails(itemsToPush, page, itemSpec);
+            itemsToPush = await expandOwnerDetails(itemsToPush, page, itemSpec);
         }
 
         // I think this feature was added by Tin and it could possibly increase the runtime by A LOT
