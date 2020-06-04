@@ -21,7 +21,7 @@ const goNextPage = (userData, lastPost, currentLength) => {
     } else {
         willContinue = (currentLength < userData.limit);
         if (!willContinue) {
-            console.warn(`Reached our posts max limit: ${limit}. Finishing scrolling...`);
+            console.warn(`Reached our posts max limit: ${userData.limit}. Finishing scrolling...`);
         }
     }
     return willContinue;
