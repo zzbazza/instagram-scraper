@@ -4,7 +4,6 @@ const { PAGE_TYPES, GRAPHQL_ENDPOINT } = require('./consts');
 const errors = require('./errors');
 
 const initData = {};
-const comments = {};
 
 /**
  * Takes type of page and data loaded through GraphQL and outputs
@@ -94,15 +93,16 @@ const loadMore = async (pageData, page, retry = 0) => {
  * @param {Object} request
  * @param {Number} length
  */
-const finiteScroll = async (pageData, page, request, length = 0) => {
+const finiteScroll = async ({ pageData, page, request, scrollingState, length = 0 }) => {
     const data = await loadMore(pageData, page);
     if (data) {
         const timeline = getCommentsFromGraphQL(data);
         if (!timeline.hasNextPage) return;
     }
 
-    if (comments[pageData.id].length < request.userData.limit && comments[pageData.id].length !== length) {
-        await finiteScroll(pageData, page, request, comments[pageData.id].length);
+    const commentsScrapedCount = Object.keys(scrollingState[pageData.id].commentIds).length;
+    if (commentsScrapedCount < request.userData.limit && (commentsScrapedCount !== length || scrollingState[pageData.id].allDuplicates)) {
+        await finiteScroll({ pageData, page, request, scrollingState, length: commentsScrapedCount });
     }
 };
 
@@ -113,16 +113,19 @@ const finiteScroll = async (pageData, page, request, length = 0) => {
  * @param {Object} itemSpec Parsed page data
  * @param {Object} entryData data from window._shared_data.entry_data
  */
-const scrapeComments = async ({ page, request, itemSpec, entryData }) => {
+const scrapeComments = async ({ page, request, itemSpec, entryData, scrollingState }) => {
     // Check that current page is of a type which has comments
     if (itemSpec.pageType !== PAGE_TYPES.POST) throw errors.notPostPage();
 
     const timeline = getCommentsFromGraphQL(entryData.PostPage[0].graphql);
     initData[itemSpec.id] = timeline;
 
+    // We want to push as soon as we have the data. We have to persist comment ids state so we don;t loose those on migration
     if (initData[itemSpec.id]) {
-        comments[itemSpec.id] = timeline.comments;
-        log(page.itemSpec, `${timeline.comments.length} comments loaded, ${comments[page.itemSpec.id].length}/${timeline.commentsCount} comments scraped`);
+        const commentsReadyToPush = filterPushedCommentsAndUpdateState({ comments: timeline.comments, itemSpec, scrollingState });
+        log(page.itemSpec, `${timeline.comments.length} comments loaded, ${Object.keys(scrollingState[itemSpec.id].commentIds).length}/${timeline.commentsCount} comments scraped`);
+
+        await Apify.pushData(commentsReadyToPush);
     } else {
         log(itemSpec, 'Waiting for initial data to load');
         while (!initData[itemSpec.id]) await page.waitFor(100);
@@ -130,28 +133,12 @@ const scrapeComments = async ({ page, request, itemSpec, entryData }) => {
 
     await page.waitFor(500);
 
-    if (initData[itemSpec.id].hasNextPage && comments[itemSpec.id].length < request.userData.limit) {
+    const willContinueScroll = initData[itemSpec.id].hasNextPage && Object.keys(scrollingState[itemSpec.id].commentIds).length < request.userData.limit;
+    // Apify.utils.log.debug(`Post ${itemSpec.id} will continue scrolling: ${willContinueScroll}`);
+    if (willContinueScroll) {
         await page.waitFor(1000);
-        await finiteScroll(itemSpec, page, request);
+        await finiteScroll({ pageData: itemSpec, page, request, scrollingState });
     }
-
-    const output = comments[itemSpec.id].map((item, index) => ({
-        '#debug': {
-            index,
-            ...Apify.utils.createRequestDebugInfo(request),
-            ...itemSpec,
-        },
-        id: item.node.id,
-        text: item.node.text,
-        timestamp: new Date(parseInt(item.node.created_at, 10) * 1000),
-        ownerId: item.node.owner ? item.node.owner.id : null,
-        ownerIsVerified: item.node.owner ? item.node.owner.is_verified : null,
-        ownerUsername: item.node.owner ? item.node.owner.username : null,
-        ownerProfilePicUrl: item.node.owner ? item.node.owner.profile_pic_url : null,
-    })).slice(0, request.userData.limit);
-
-    await Apify.pushData(output);
-    log(itemSpec, `${output.length} items saved, task finished`);
 };
 
 /**
@@ -159,7 +146,7 @@ const scrapeComments = async ({ page, request, itemSpec, entryData }) => {
  * @param {Object} page Puppeteer Page object
  * @param {Object} response Puppeteer Response object
  */
-async function handleCommentsGraphQLResponse(page, response) {
+async function handleCommentsGraphQLResponse({ page, response, scrollingState }) {
     const responseUrl = response.url();
 
     // Get variable we look for in the query string of request
@@ -171,14 +158,61 @@ async function handleCommentsGraphQLResponse(page, response) {
     const data = await response.json();
     const timeline = getCommentsFromGraphQL(data.data);
 
-    comments[page.itemSpec.id] = comments[page.itemSpec.id].concat(timeline.comments);
-
-    if (!initData[page.itemSpec.id]) initData[page.itemSpec.id] = timeline;
-    else if (initData[page.itemSpec.id].hasNextPage && !timeline.hasNextPage) {
+    if (!initData[page.itemSpec.id]) {
+        initData[page.itemSpec.id] = timeline;
+    } else if (initData[page.itemSpec.id].hasNextPage && !timeline.hasNextPage) {
         initData[page.itemSpec.id].hasNextPage = false;
     }
 
-    log(page.itemSpec, `${timeline.comments.length} comments loaded, ${comments[page.itemSpec.id].length}/${timeline.commentsCount} comments scraped`);
+    const commentsReadyToPush = filterPushedCommentsAndUpdateState({ comments: timeline.comments, itemSpec: page.itemSpec, scrollingState });
+    log(page.itemSpec, `${timeline.comments.length} comments loaded, ${Object.keys(scrollingState[page.itemSpec.id].commentIds).length}/${timeline.commentsCount} comments scraped`);
+    await Apify.pushData(commentsReadyToPush);
+}
+
+function filterPushedCommentsAndUpdateState ({ comments, itemSpec, scrollingState }) {
+    if (!scrollingState[itemSpec.id]) {
+        scrollingState[itemSpec.id] = {
+            allDuplicates: false,
+            commentIds: {},
+        };
+    }
+    const currentScrollingPosition = Object.keys(scrollingState[itemSpec.id]).length;
+    const parsedComments = parseCommentsForOutput(comments, itemSpec, currentScrollingPosition);
+    const commentsToPush = [];
+    for (const comment of parsedComments) {
+        if (!scrollingState[itemSpec.id].commentIds[comment.id]) {
+            commentsToPush.push(comment);
+            scrollingState[itemSpec.id].commentIds[comment.id] = true;
+        } else {
+            Apify.utils.log.debug(`Comment: ${comment.id} was already pushed, skipping...`);
+        }
+    }
+    // We have to tell the state if we are going though duplicates so it knows it should still continue scrolling
+    if (commentsToPush.length === 0) {
+        scrollingState[itemSpec.id].allDuplicates = true;
+    } else {
+        scrollingState[itemSpec.id].allDuplicates = false;
+    }
+    return commentsToPush;
+}
+
+function parseCommentsForOutput (comments, itemSpec, currentScrollingPosition) {
+    return comments.map((item, index) => ({
+        '#debug': {
+            index: index + currentScrollingPosition + 1,
+            // ...Apify.utils.createRequestDebugInfo(request),
+            ...itemSpec,
+        },
+        id: item.node.id,
+        postId: itemSpec.id,
+        text: item.node.text,
+        position: index + currentScrollingPosition + 1,
+        timestamp: new Date(parseInt(item.node.created_at, 10) * 1000),
+        ownerId: item.node.owner ? item.node.owner.id : null,
+        ownerIsVerified: item.node.owner ? item.node.owner.is_verified : null,
+        ownerUsername: item.node.owner ? item.node.owner.username : null,
+        ownerProfilePicUrl: item.node.owner ? item.node.owner.profile_pic_url : null,
+    }))
 }
 
 module.exports = {

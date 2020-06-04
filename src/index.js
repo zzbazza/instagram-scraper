@@ -31,6 +31,12 @@ async function main() {
 
     await initQueryIds();
 
+    // We have to keep a state of posts/comments we already scraped so we don't push duplicates
+    const scrollingState = (await Apify.getValue('STATE-SCROLLING')) || {};
+    const persistState = async () => { await Apify.setValue('STATE-SCROLLING', scrollingState)}
+    setInterval(persistState, 5000);
+    Apify.events.on('persistState', persistState);
+
     let maxConcurrency = 1000;
 
     const usingLogin = loginCookies && Array.isArray(loginCookies);
@@ -124,7 +130,7 @@ async function main() {
             switch (resultsType) {
                 case SCRAPE_TYPES.POSTS: return handlePostsGraphQLResponse(page, response)
                     .catch(error => Apify.utils.log.error(error));
-                case SCRAPE_TYPES.COMMENTS: return handleCommentsGraphQLResponse(page, response)
+                case SCRAPE_TYPES.COMMENTS: return handleCommentsGraphQLResponse({ page, response, scrollingState })
                     .catch(error => Apify.utils.log.error(error));
                 // no default
             }
@@ -185,7 +191,7 @@ async function main() {
             page.itemSpec = itemSpec;
             switch (resultsType) {
                 case SCRAPE_TYPES.POSTS: return scrapePosts({ page, request, itemSpec, entryData, requestQueue, input });
-                case SCRAPE_TYPES.COMMENTS: return scrapeComments({ page, request, itemSpec, entryData });
+                case SCRAPE_TYPES.COMMENTS: return scrapeComments({ page, request, itemSpec, entryData, scrollingState });
                 case SCRAPE_TYPES.DETAILS: return scrapeDetails({ input, request, itemSpec, entryData, page, proxy, userResult });
                 default: throw new Error('Not supported');
             }
