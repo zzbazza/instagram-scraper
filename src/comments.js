@@ -117,6 +117,12 @@ const scrapeComments = async ({ page, request, itemSpec, entryData, scrollingSta
     // Check that current page is of a type which has comments
     if (itemSpec.pageType !== PAGE_TYPES.POST) throw errors.notPostPage();
 
+    // Check if the page loaded properly
+    const el = await page.$('.EtaWk');
+    if (!el) {
+        throw new Error(`Post page didn't load properly, opening again`);
+    }
+
     const timeline = getCommentsFromGraphQL(entryData.PostPage[0].graphql);
     initData[itemSpec.id] = timeline;
 
