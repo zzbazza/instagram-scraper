@@ -339,6 +339,14 @@ const finiteScroll = async (context) => {
         if (!timeline.hasNextPage) return;
     }
 
+    if (type === 'posts') {
+        const modulo = oldItemCount % 996;
+        if (modulo >= 0 && modulo < 12) { // Every 996 posts: Wait for 2mins due to 429 Rate limit error from IG!
+            Apify.utils.log.info('Waiting 2mins to prevent 429 error..');
+            await page.waitFor(2 * 60 * 1000);
+        }
+    }
+
     await page.waitFor(200);
 
     const doContinue = shouldContinueScrolling({ scrollingState, itemSpec, oldItemCount, type })
