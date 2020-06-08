@@ -187,6 +187,12 @@ const scrapePosts = async ({ page, itemSpec, entryData, scrollingState }) => {
         if (!el) {
             throw new Error("Posts didn't load properly, opening again");
         }
+        const privatePageSel = '.rkEop';
+        const elPrivate = await page.$(`${privatePageSel}`);
+        if (elPrivate) {
+            Apify.utils.log.info('Profile is private exiting..');
+            return;
+        }
     }
 
     if (initData[itemSpec.id]) {
