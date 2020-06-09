@@ -39,7 +39,7 @@ The input of this scraper should be JSON containing the list of pages on Instagr
 | resultsLimit | Integer | How many items should be loaded from each URL (limit is per page) |
 | proxy | Object | Proxy configuration |
 | loginCookies | Array | (optional) Cookies copied from logged in profile (for example using EditThisCookie extension) |
-| likedByLimits | Number | (optional) How many likes should be scraped from post page (only works with login) |
+| likedByLimit | Number | (optional) How many likes should be scraped from post page (only works with login) |
 | followingLimit | Number | (optional) How many following should be scraped from profile page (only works with login) |
 | followedByLimit | Number | (optional) How many followers should be scraped from profile page (only works with login) |
 | expandOwners | Boolean | (optional) **!Experimental!** Load additional details about post owner for each post (slows down the solution a lot) |

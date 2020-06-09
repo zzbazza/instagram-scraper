@@ -47,12 +47,16 @@ const formatSinglePost = (node) => {
         mentions,
         url: `https://www.instagram.com/p/${node.shortcode}`,
         commentsCount: comments ? comments.count : null,
+        latestComments: comments && comments.edges ? comments.edges.map(edge => ({
+            ownerUsername: edge.node.owner ? edge.node.owner.username : '',
+            text: edge.node.text,
+        })).reverse() : [],
         dimensionsHeight: node.dimensions.height,
         dimensionsWidth: node.dimensions.width,
         displayUrl: node.display_url,
         videoUrl: node.video_url,
         id: node.id,
-        firstComment: node.edge_media_to_comment.edges && node.edge_media_to_comment.edges[0] && node.edge_media_to_comment.edges[0].node.text,
+        firstComment: comments && comments.edges && comments.edges[0] && comments.edges[0].node.text,
         alt: node.accessibility_caption,
         likesCount: likes ? likes.count : null,
         videoDuration: node.video_duration,
@@ -167,13 +171,8 @@ const formatPostOutput = async (input, request, data, page, itemSpec) => {
         displayResourceUrls: data.edge_sidecar_to_children ? formatDisplayResources(data.edge_sidecar_to_children.edges) : null,
         childPosts: data.edge_sidecar_to_children ? data.edge_sidecar_to_children.edges.map((child) => formatSinglePost(child.node)) : null,
         locationSlug: data.location ? data.location.slug : null,
-        ownerUsername: data.owner ? data.owner.username : null,
         isAdvertisement: typeof data.is_ad !== 'undefined' ? data.is_ad : null,
         taggedUsers: data.edge_media_to_tagged_user ? data.edge_media_to_tagged_user.edges.map(edge => edge.node.user.username) : [],
-        latestComments: data.edge_media_to_comment ? data.edge_media_to_comment.edges.map(edge => ({
-            ownerUsername: edge.node.owner ? edge.node.owner.username : '',
-            text: edge.node.text,
-        })).reverse() : [],
         likedBy,
     }
 };

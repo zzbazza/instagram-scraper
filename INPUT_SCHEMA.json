@@ -85,7 +85,7 @@
             "sectionCaption": "Login using cookies",
             "sectionDescription": "Instagram limits access to certain data (likes, post user data, followers and others) if user is anonymous. You can provide you cookies here (copied from chrome plugin like 'EditThisCookie' to use a normal account. Do not use your own cookies here and rather create a new temporary account. When cookies are used, the run is limited to concurrency 1 and one session, so that the account does not get banned too soon."
         },
-        "likedByLimits": {
+        "likedByLimit": {
             "title": "Get post likes",
             "type": "integer",
             "description": "If this limit is set above 0, then the solution will attempt to load additional details about users who liked the post.",
