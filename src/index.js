@@ -158,6 +158,11 @@ async function main() {
             Apify.utils.log.info(`Page "${request.url}" does not exist.`);
             return;
         }
+        const error = await page.$('body.p-error');
+        if (error) {
+            Apify.utils.log.info(`Page "${request.url}" cannot be displayed.`);
+            return;
+        }
         // eslint-disable-next-line no-underscore-dangle
         await page.waitFor(() => (!window.__initialData.pending && window.__initialData && window.__initialData.data), { timeout: 20000 });
         // eslint-disable-next-line no-underscore-dangle
