@@ -47,7 +47,7 @@ const formatSinglePost = (node) => {
         mentions,
         url: `https://www.instagram.com/p/${node.shortcode}`,
         commentsCount: comments ? comments.count : null,
-        latestComments: comments ? comments.edges.map(edge => ({
+        latestComments: comments && comments.edges ? comments.edges.map(edge => ({
             ownerUsername: edge.node.owner ? edge.node.owner.username : '',
             text: edge.node.text,
         })).reverse() : [],
