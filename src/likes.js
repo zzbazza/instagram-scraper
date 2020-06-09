@@ -5,7 +5,7 @@ const { postLikesQueryId } = QUERY_IDS;
 
 async function getPostLikes(page, itemSpec, input) {
     const limit = input.likedByLimit;
-    if (!limit) return [];
+    if (!limit || limit === 0) return [];
     log(itemSpec, `Loading users who liked the post (limit ${limit} items).`);
 
     const nodeTransformationFunction = (data) => {
