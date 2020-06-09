@@ -52,7 +52,7 @@ const formatSinglePost = (node) => {
         displayUrl: node.display_url,
         videoUrl: node.video_url,
         id: node.id,
-        firstComment: node.edge_media_to_comment.edges && node.edge_media_to_comment.edges[0] && node.edge_media_to_comment.edges[0].node.text,
+        firstComment: node.edge_media_to_comment && node.edge_media_to_comment.edges && node.edge_media_to_comment.edges[0] && node.edge_media_to_comment.edges[0].node.text,
         alt: node.accessibility_caption,
         likesCount: likes ? likes.count : null,
         videoDuration: node.video_duration,
