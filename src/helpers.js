@@ -323,31 +323,138 @@ const shouldContinueScrolling = ({ scrollingState, itemSpec, oldItemCount, type 
     return shouldGoNextGeneric;
 }
 
+const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
+    await page.keyboard.press('PageUp');
+    const checkedVariable = getCheckedVariable(itemSpec.pageType);
+    const responsePromise = page.waitForResponse(
+        (response) => {
+            const responseUrl = response.url();
+            return responseUrl.startsWith(GRAPHQL_ENDPOINT)
+                && responseUrl.includes(checkedVariable)
+                && responseUrl.includes('%22first%22');
+        },
+        { timeout: 100000 },
+    ).catch(() => null);
+
+    let clicked = [];
+    for (let i = 0; i < 10; i++) {
+        let elements;
+        if (type === 'posts') {
+            elements = await page.$x("//div[contains(text(), 'Show More Posts')]");
+        } else if (type === 'comments') {
+            elements = await page.$$('[aria-label="Load more comments"]');
+        } else {
+            throw new Error('Type has to be "posts" or "comments"!');
+        }
+
+        if (elements.length === 0) {
+            break;
+        }
+        const [button] = elements;
+
+        clicked = await Promise.all([
+            button.click(),
+            page.waitForRequest(
+                (request) => {
+                    const requestUrl = request.url();
+                    return requestUrl.startsWith(GRAPHQL_ENDPOINT)
+                        && requestUrl.includes(checkedVariable)
+                        && requestUrl.includes('%22first%22');
+                },
+                {
+                    timeout: 1000,
+                },
+            ).catch(() => null),
+        ]);
+        if (clicked[1]) break;
+    }
+
+    let scrolled;
+    for (let i = 0; i < 10; i++) {
+        scrolled = await Promise.all([
+            // eslint-disable-next-line no-restricted-globals
+            page.evaluate(() => scrollBy(0, 9999999)),
+            page.waitForRequest(
+                (request) => {
+                    const requestUrl = request.url();
+                    return requestUrl.startsWith(GRAPHQL_ENDPOINT)
+                        && requestUrl.includes(checkedVariable)
+                        && requestUrl.includes('%22first%22');
+                },
+                {
+                    timeout: 1000,
+                },
+            ).catch(() => null),
+        ]);
+        if (scrolled[1]) break;
+    }
+
+    let data = null;
+    if (scrolled[1] || clicked[1]) {
+        try {
+            const response = await responsePromise;
+            const json = await response.json();
+            const status = await response.status();
+            // console.log('Scroll status:', status);
+            if (status === 429) {
+                return { rateLimited: true };
+            }
+            // eslint-disable-next-line prefer-destructuring
+            if (json) data = json.data;
+        } catch (error) {
+            Apify.utils.log.error(error);
+        }
+    }
+
+    if (!data && retry < 10 && (scrolled[1] || retry < 5)) {
+        const retryDelay = retry ? ++retry * retry * 1000 : ++retry * 1000;
+        log(itemSpec, `Retry scroll after ${retryDelay / 1000} seconds`);
+        await page.waitFor(retryDelay);
+        const returnData = await loadMore({ itemSpec, page, retry, type });
+        return { data: returnData };
+    }
+
+    // await page.waitFor(500);
+    return  { data };
+};
+
 const finiteScroll = async (context) => {
     const {
         itemSpec,
         page,
         scrollingState,
-        loadMoreFn,
         getItemsFromGraphQLFn,
         type,
     } = context;
     const oldItemCount = Object.keys(scrollingState[itemSpec.id].ids).length;
-    const data = await loadMoreFn(itemSpec, page);
+    const { data, rateLimited } = await loadMore({ itemSpec, page, type });
+
+    if (rateLimited) {
+        Apify.utils.log.exception(`Scrolling got blocked by Instagram, finishing! Please increase the "scrollWaitSecs" input and run again.`);
+        return;
+    }
+
     if (data) {
         const timeline = getItemsFromGraphQLFn({ data, pageType: itemSpec.pageType });
         if (!timeline.hasNextPage) return;
     }
 
-    if (type === 'posts') {
-        const modulo = oldItemCount % 996;
-        if (modulo >= 0 && modulo < 12) { // Every 996 posts: Wait for 2mins due to 429 Rate limit error from IG!
-            Apify.utils.log.info('Waiting 2mins to prevent 429 error..');
-            await page.waitFor(2 * 60 * 1000);
+    // There is a rate limit in scrolling, we don;t know exactly how much
+    // If you reach it, it will block you completely so it is necessary to wait more in scrolls
+    // Seems the biggest block chance is when you are over 2000 items
+    const { scrollWaitSecs } = itemSpec.input;
+    if (oldItemCount > 1000) {
+        const modulo = oldItemCount % 100;
+        if (modulo >= 0 && modulo < 12) { // Every 100 posts: Wait random for user passed time with some randomization
+            const waitSecs = Math.round(scrollWaitSecs * (Math.random() + 1));
+            Apify.utils.log.info(`Sleeping for ${waitSecs} seconds to prevent getting rate limit error..`);
+            await page.waitFor(waitSecs * 1000);
         }
     }
 
-    await page.waitFor(200);
+    // Small ranom wait (200-600ms) in between each scroll
+    const waitMs = Math.round(200 * (Math.random() * 2 + 1));
+    await page.waitFor(waitMs);
 
     const doContinue = shouldContinueScrolling({ scrollingState, itemSpec, oldItemCount, type })
 
