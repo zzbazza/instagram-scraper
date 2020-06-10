@@ -75,6 +75,10 @@ async function main() {
         process.exit(1);
     }
 
+    if (proxy && proxy.useApifyProxy && (!proxy.apifyProxyGroups || !proxy.apifyProxyGroups.includes('RESIDENTIAL'))) {
+        Apify.utils.log.warning('You are using Apify proxy but not residential group! It is very likely it will not work properly. Please contact support@apify.com for access to residential proxy.')
+    }
+
     const requestListSources = urls.map(url => ({
         url,
         userData: { limit: resultsLimit, scrapePostsUntilDate },

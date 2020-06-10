@@ -11,7 +11,7 @@ const initData = {};
  * @param {Object} data GraphQL data
  */
 const getCommentsFromGraphQL = ({ data }) => {
-    const timeline = data.shortcode_media.edge_media_to_parent_comment;
+    const timeline = data && data.shortcode_media && data.shortcode_media.edge_media_to_parent_comment;
     const commentItems = timeline ? timeline.edges.reverse() : [];
     const commentsCount = timeline ? timeline.count : null;
     const hasNextPage = timeline ? timeline.page_info.has_next_page : false;
