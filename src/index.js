@@ -18,7 +18,7 @@ async function main() {
         resultsType,
         resultsLimit = 200,
         scrapePostsUntilDate,
-        scrollWaitSecs = 10,
+        scrollWaitSecs = 15,
         pageTimeout = 60,
         maxRequestRetries,
         loginCookies,

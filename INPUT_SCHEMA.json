@@ -70,6 +70,12 @@
             "description": "Scrapes post from the latest until it reaches older than provided date. The date should be in format YYYY-MM-DD. By defautl scrapes all posts.",
             "editor": "textfield"
         },
+        "scrollWaitSecs": {
+            "title": "Scroll wait seconds",
+            "type": "integer",
+            "description": "How many seconds it will wait every 100 posts/comments when scrolling. If you scrape more than 1000 items, it is important to slow down to not get blocked. The seconds are randomized a bit. If you get blocked, increase this number.",
+            "default": 15
+        },
         "proxy": {
             "title": "Proxy configuration",
             "type": "object",

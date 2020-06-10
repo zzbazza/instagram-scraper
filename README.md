@@ -1,6 +1,15 @@
 # Actor - Instagram scraper
 
-## Instagram scraper
+- [Features](#Features)
+- [Features planned](#Features-planned)
+- [Changelog](#Changelog)
+- [Instagram blocking and proxies](#Instagram-blocking-and-proxies)
+- [Input parameters](#Input-parameters)
+- [Using cookies to log in](#Using-cookies-to-log-in)
+- [Instagram output format](#Instagram-output-format)
+- [How to scrape Instagram blogpost(tutorial)](#How-to-scrape-Instagram-blogpost)
+
+## Features
 
 Since Instagram has removed the option to load public data through its API, this actor should help replace this functionality. It allows you to scrape posts from a user's profile page, hashtag page or place. When a link to an Instagram post is provided, it can scrape Instagram comments.
 
@@ -18,11 +27,25 @@ The Instagram data scraper supports the following features:
 
 If you are interested in this solution and want to know more about how it works, I wrote a short introduction on [Apify blog](https://medium.com/p/21d05506aeb3).
 
-## Instagram scraper - future
+## Features planned
 
 In the future, this solution will be extended with following features:
 
 - Scraping of Instagram stories
+- Scraping and download of Instagram photos
+
+## Changelog
+Check CHANGELOG.md for more detailed information
+2020-06-11 - Big update with many fixes and new features
+
+## Instagram blocking and proxies
+In May 2020, Instagram significantly upgraded their anti-scraping protection, banning most datacenter proxies worldwide. Many of the previously working solutions were completely blocked by redirecting the pages into login wall. Currently, the only reliable solution to this problem is to use residential proxies. Datacenter proxies may still work but likely in less than 10% of cases.
+
+### Apify residential proxies
+Apify platform [provides residential proxies](https://apify.com/proxy?pricing=residential-ip#pricing) for extra fee. These proxies are only sold to be run with the scrapers like this one, not externally. If you are interested in buying some residential GBs, just ping support@apify.com and they will get back to you with more detailed offer.
+
+### Custom proxies
+You can also use proxies from other providers in the custom proxies fields (`proxyUrls` in the JSON settings).
 
 ## Input parameters
 
@@ -38,6 +61,8 @@ The input of this scraper should be JSON containing the list of pages on Instagr
 | resultsType | String | What to scrape from each page, default is "posts" the other option is "comments" |
 | resultsLimit | Integer | How many items should be loaded from each URL (limit is per page) |
 | proxy | Object | Proxy configuration |
+| scrapePostsUntilDate | String | (optional) Date in the past when you stop scrolling older posts |
+| scrollWaitSecs | Number | How long to wait every 100 scolled items to prevent blocking by Instagram. This number is randomized. Default is 10 seconds |
 | loginCookies | Array | (optional) Cookies copied from logged in profile (for example using EditThisCookie extension) |
 | likedByLimit | Number | (optional) How many likes should be scraped from post page (only works with login) |
 | followingLimit | Number | (optional) How many following should be scraped from profile page (only works with login) |
@@ -60,7 +85,7 @@ This solution requires the use of **Proxy servers**, either your own proxy serve
 
 ```
 
-### Using cookies to log in
+## Using cookies to log in
 This solution allows you to log in using already initialized cookies of logged in user.
 If you use this option, the solution will do as much as possible to prevent the account from being banned (slow down to just one page open at a time and introduce delays between actions).
 
@@ -80,13 +105,13 @@ When items are loaded from the page, you should see a message about this event w
 If you provide incorrect input to the actor, it will immediately stop with failure state and output an explanation of
 what is wrong.
 
-## Instagram export
+## Instagram output format
 
 During the run, the actor stores results into a dataset. Each item is a separate item in the dataset.
 
 You can manage the results in any languague (Python, PHP, Node JS/NPM). See the FAQ or <a href="https://www.apify.com/docs/api" target="blank">our API reference</a> to learn more about getting results from this Instagram actor.
 
-## Scraped Instagram posts
+### Scraped Instagram posts
 The structure of each item in Instagram posts looks like this:
 
 ```json
@@ -113,7 +138,7 @@ The structure of each item in Instagram posts looks like this:
 }
 ```
 
-## Scraped Instagram comments
+### Scraped Instagram comments
 The structure of each item in Instagram comments looks like this:
 
 ```json
@@ -137,7 +162,7 @@ The structure of each item in Instagram comments looks like this:
 }
 ```
 
-## Scraped Instagram profile
+### Scraped Instagram profile
 The structure of each user profile looks like this:
 
 ```yaml
@@ -203,7 +228,7 @@ The structure of each user profile looks like this:
 }
 ```
 
-## Scraped Instagram hashtag
+### Scraped Instagram hashtag
 The structure of each hashtag detail looks like this:
 
 ```yaml
@@ -249,7 +274,7 @@ The structure of each hashtag detail looks like this:
 }
 ```
 
-## Scraped Instagram place
+### Scraped Instagram place
 The structure of each place detail looks like this:
 
 ```yaml
@@ -310,7 +335,7 @@ The structure of each place detail looks like this:
 }
 ```
 
-## Scraped Instagram post
+### Scraped Instagram post
 The structure of each post detail looks like this:
 
 ```yaml
@@ -357,21 +382,10 @@ The structure of each post detail looks like this:
 }
 ```
 
-## How to scrape Instagram
+## How to scrape Instagram blogpost
 I wrote a short introduction to this solution and how it works. You can find it at [blog.apify.com](https://medium.com/p/21d05506aeb3)
 
-## Instagram scraper - future
-In the future, this solution will be extended with following features
-
-- Scraping and download of Instagram photos
-- Scraping of Instagram stories
-
-## Compute units consumption
-Keep in mind that it is much more efficient to run one longer scrape (at least one minute) than more shorter ones because of the startup time.
-
-The average consumption is **1 Compute unit for 400 actor pages** scraped
-
-### Extend output function
+## Extend output function
 
 You can use this function to update the result output of this actor. You can query html dom what data from the page you want to scrape. The output from this will function will get merged with the result output.
 

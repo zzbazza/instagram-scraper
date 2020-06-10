@@ -5,10 +5,8 @@ const got = require('got');
 const safeEval = require('safe-eval');
 const { URLSearchParams } = require('url');
 const errors = require('./errors');
-const consts = require('./consts');
 const { expandOwnerDetails } = require('./user-details');
-
-const { PAGE_TYPES } = consts;
+const { PAGE_TYPES, GRAPHQL_ENDPOINT } = require('./consts');
 
 /**
  * Takes object from _sharedData.entry_data and parses it into simpler object
@@ -414,7 +412,7 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
         return { data: returnData };
     }
 
-    // await page.waitFor(500);
+    await page.waitFor(100);
     return  { data };
 };
 

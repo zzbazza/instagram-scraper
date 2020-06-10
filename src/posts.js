@@ -1,6 +1,6 @@
 const Apify = require('apify');
 const { getCheckedVariable, log, finiteScroll, filterPushedItemsAndUpdateState, shouldContinueScrolling } = require('./helpers');
-const { PAGE_TYPES, GRAPHQL_ENDPOINT } = require('./consts');
+const { PAGE_TYPES } = require('./consts');
 const { formatSinglePost } = require('./details');
 
 const initData = {};
