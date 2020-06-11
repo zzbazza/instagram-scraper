@@ -107,8 +107,7 @@ log in with the account you want to use and then use the extension to export coo
 During the run, the actor will output messages letting you know what is going on. Each message always contains a short label specifying which page from the provided list is currently specified.
 When items are loaded from the page, you should see a message about this event with a loaded item count and total item count for each page.
 
-If you provide incorrect input to the actor, it will immediately stop with failure state and output an explanation of
-what is wrong.
+If you provide incorrect input to the actor, it will immediately stop with failure state and output an explanation of what is wrong.
 
 ## Instagram output format
 
@@ -117,29 +116,45 @@ During the run, the actor stores results into a dataset. Each item is a separate
 You can manage the results in any languague (Python, PHP, Node JS/NPM). See the FAQ or <a href="https://www.apify.com/docs/api" target="blank">our API reference</a> to learn more about getting results from this Instagram actor.
 
 ### Scraped Instagram posts
-The structure of each item in Instagram posts looks like this:
+The structure of each item in Instagram posts when scrolling looks like this:
 
 ```json
 {
   "#debug": {
-    "index": 1,
     "pageType": "user",
     "id": "teslamotors",
     "userId": "297604134",
     "userUsername": "teslamotors",
     "userFullName": "Tesla",
-    "shortcode": "BwrsO1Bho2N",
-    "postLocationId": "2172837629656184",
+    "limit": 1000000,
+    "scrollWaitSecs": 0,
+    "shortcode": "B27C4aRBfet",
+    "postLocationId": null,
     "postOwnerId": "297604134"
   },
-  "url": "https://www.instagram.com/p/BwrsO1Bho2N",
-  "likesCount": 142707,
-  "imageUrl": "https://scontent-ort2-2.cdninstagram.com/vp/ddc96ff719e514e118da40af30c21e44/5D625C61/t51.2885-15/e35/57840129_308705413159630_8358160330083042716_n.jpg?_nc_ht=scontent-ort2-2.cdninstagram.com",
-  "firstComment": "Newly upgraded Model S and X drive units rolling down the production line at Gigafactory 1",
-  "timestamp": "2019-04-25T14:57:01.000Z",
-  "locationName": "Tesla Gigafactory 1",
+  "queryUsername": "teslamotors",
+  "position": 10,
+  "type": "Image",
+  "shortCode": "B27C4aRBfet",
+  "caption": "@hub3rt picked up his Model 3 and brought our London team a cake. \nIf there is a purer thing in this world we would like to hear about it.",
+  "hashtags": [],
+  "mentions": [
+    "hub3rt"
+  ],
+  "url": "https://www.instagram.com/p/B27C4aRBfet",
+  "commentsCount": 926,
+  "latestComments": [],
+  "dimensionsHeight": 1080,
+  "dimensionsWidth": 1080,
+  "displayUrl": "https://instagram.fyyc3-1.fna.fbcdn.net/v/t51.2885-15/e35/70538312_1124483511275040_7970075346943975868_n.jpg?_nc_ht=instagram.fyyc3-1.fna.fbcdn.net&_nc_cat=100&_nc_ohc=UBV8F4hhd_AAX_INMgA&oh=be328b96f1ad3fbb95b54a35b8b0eb79&oe=5F0D6E0E",
+  "id": "2142318720331413421",
+  "alt": "Photo by Tesla on September 27, 2019. Image may contain: one or more people, people standing and car",
+  "likesCount": 181500,
+  "timestamp": "2019-09-27T17:11:54.000Z",
+  "locationName": null,
+  "locationId": null,
   "ownerUsername": "teslamotors",
-  "owner": {...}
+  "ownerId": "297604134"
 }
 ```
 
@@ -149,21 +164,23 @@ The structure of each item in Instagram comments looks like this:
 ```json
 {
   "#debug": {
-    "index": 13,
+    "index": 1,
     "pageType": "post",
-    "id": "Bw7jACTn3tC",
+    "id": "BwrsO1Bho2N",
     "postCommentsDisabled": false,
-    "postIsVideo": true,
-    "postVideoViewCount": 418505,
-    "postVideoDurationSecs": 13.05
+    "postIsVideo": false,
+    "postVideoViewCount": 0,
+    "postVideoDurationSecs": 0
   },
-  "id": "17847980458427200",
-  "text": "#thankyouavengers",
-  "timestamp": null,
-  "ownerId": "3821638094",
+  "id": "17900515570488496",
+  "postId": "BwrsO1Bho2N",
+  "text": "When is Tesla going to make boats? It was so nice to see clear water in Venice during the covid lockdown!",
+  "position": 1,
+  "timestamp": "2020-06-07T12:54:20.000Z",
+  "ownerId": "5319127183",
   "ownerIsVerified": false,
-  "ownerUsername": "exelya_alvyolita",
-  "ownerProfilePicUrl": "https://scontent-ort2-1.cdninstagram.com/vp/b12a3649da329b32a3d7f0d2127d5033/5D6141DD/t51.2885-19/s150x150/54446808_273968013485672_6984748001717649408_n.jpg?_nc_ht=scontent-ort2-1.cdninstagram.com"
+  "ownerUsername": "mauricepaoletti",
+  "ownerProfilePicUrl": "https://scontent-lhr8-1.cdninstagram.com/v/t51.2885-19/s150x150/84630643_482577542360727_932647097444859904_n.jpg?_nc_ht=scontent-lhr8-1.cdninstagram.com&_nc_ohc=B3lQcy6UHX4AX8RjJKN&oh=1df825b662e1f1412eb21fc581c5db75&oe=5F0A760B"
 }
 ```
 
@@ -250,7 +267,9 @@ The structure of each hashtag detail looks like this:
     {
       "type": "Image",
       "shortCode": "Bw9UYRrhxfl",
-      "caption": "Here is the second part😂😂 Find the first part on the page\nGuess the pictures😏\n-\n-\n-\n#marvel #mcu #dceu #worldofdc #endgame #superhero #superheros #infinitywar #batman #superman #wonderwoman #iroman #captainamerica #thor #thanos #memes #news #dc #dcuniverse #power #funny #fun",
+      "caption": "Here is the second part😂😂 Find the first part on the page\nGuess the pictures😏\n-\n-\n-\n#marvel #mcu #dceu #worldofdc #endgame #superhero #superheros #infinitywar #batman #superman #wonderwoman #iroman #captainamerica #thor #thanos #memes #news #dc #dcuniverse #power #funny #fun" "@marvel",
+      "hashtags": ["marvel", "mcu", "etc..."],
+      "mentions": ["marvel"],
       "commentsCount": 9,
       "dimensionsHeight": 1326,
       "dimensionsWidth": 1080,
@@ -340,50 +359,58 @@ The structure of each place detail looks like this:
 }
 ```
 
-### Scraped Instagram post
+### Scraped Instagram post details
 The structure of each post detail looks like this:
 
 ```yaml
 {
   "#debug": {
-    "url": "https://www.instagram.com/p/BxNXsMxHPxP",
-    "loadedUrl": "https://www.instagram.com/p/BxNXsMxHPxP/",
+    "requestId": "YCyUc93vUGzK9eA",
+    "url": "https://www.instagram.com/p/BwrsO1Bho2N",
+    "loadedUrl": "https://www.instagram.com/p/BwrsO1Bho2N/",
     "method": "GET",
     "retryCount": 0,
     "errorMessages": null
   },
-  "type": "Video",
-  "shortCode": "BxNXsMxHPxP",
-  "caption": "Marvel Studios’ #AvengersEndgame is shattering records across the globe. See it again in theaters: [link in bio]",
-  "commentsCount": 1794,
-  "dimensionsHeight": 750,
-  "dimensionsWidth": 750,
-  "displayUrl": "https://scontent-ort2-1.cdninstagram.com/vp/239e87b3b648f33169202e98a717e194/5CDE033C/t51.2885-15/e35/59449246_615674172234740_4080098836227673311_n.jpg?_nc_ht=scontent-ort2-1.cdninstagram.com",
-  "likesCount": null,
-  "videoDuration": 30.05,
-  "videoViewCount": 1041624,
-  "timestamp": "2019-05-08T16:51:42.000Z",
-  "locationName": null,
-  "ownerFullName": "Avengers: Endgame",
+  "type": "Sidecar",
+  "shortCode": "BwrsO1Bho2N",
+  "caption": "Newly upgraded Model S and X drive units rolling down the production line at Gigafactory 1 #tesla #model3 @elonmusk",
+  "hashtags": ["tesla", "model3"],
+  "mentions": ["elonmusk"],
+  "position": 1,
+  "url": "https://www.instagram.com/p/BwrsO1Bho2N",
+  "commentsCount": 711,
+  "latestComments": [
+    {
+      "ownerUsername": "mauricepaoletti",
+      "text": "When is Tesla going to make boats? It was so nice to see clear water in Venice during the covid lockdown!"
+    },
+    ...
+  ],
+  "dimensionsHeight": 1350,
+  "dimensionsWidth": 1080,
+  "displayUrl": "https://instagram.fist4-1.fna.fbcdn.net/v/t51.2885-15/e35/57840129_308705413159630_8358160330083042716_n.jpg?_nc_ht=instagram.fist4-1.fna.fbcdn.net&_nc_cat=110&_nc_ohc=g7JIBg70oHMAX_QGayb&oh=1402875349a6d1cd8693f14f2b617fd6&oe=5F0DBA1F",
+  "id": "2029910590113615245",
+  "firstComment": "@miszdivastatuz",
+  "likesCount": 153786,
+  "timestamp": "2019-04-25T14:57:01.000Z",
+  "locationName": "Tesla Gigafactory 1",
+  "locationId": "2172837629656184",
+  "ownerFullName": "Tesla",
+  "ownerUsername": "teslamotors",
+  "ownerId": "297604134",
   "captionIsEdited": false,
   "hasRankedComments": false,
   "commentsDisabled": false,
   "displayResourceUrls": [
-    "https://scontent-ort2-1.cdninstagram.com/vp/3cbe04cc1130a78ed12f2f4a63a7e5f0/5CDE6799/t51.2885-15/sh0.08/e35/s640x640/59449246_615674172234740_4080098836227673311_n.jpg?_nc_ht=scontent-ort2-1.cdninstagram.com",
-    "https://scontent-ort2-1.cdninstagram.com/vp/239e87b3b648f33169202e98a717e194/5CDE033C/t51.2885-15/e35/59449246_615674172234740_4080098836227673311_n.jpg?_nc_ht=scontent-ort2-1.cdninstagram.com",
-    "https://scontent-ort2-1.cdninstagram.com/vp/239e87b3b648f33169202e98a717e194/5CDE033C/t51.2885-15/e35/59449246_615674172234740_4080098836227673311_n.jpg?_nc_ht=scontent-ort2-1.cdninstagram.com"
+    "https://instagram.fist4-1.fna.fbcdn.net/v/t51.2885-15/e35/57840129_308705413159630_8358160330083042716_n.jpg?_nc_ht=instagram.fist4-1.fna.fbcdn.net&_nc_cat=110&_nc_ohc=g7JIBg70oHMAX_QGayb&oh=1402875349a6d1cd8693f14f2b617fd6&oe=5F0DBA1F",
+    "https://instagram.fist4-1.fna.fbcdn.net/v/t51.2885-15/e35/56744724_532173877312018_171181625703519178_n.jpg?_nc_ht=instagram.fist4-1.fna.fbcdn.net&_nc_cat=110&_nc_ohc=_zTxcKu_hyYAX9KtDax&oh=175f7e2fceb3f6b20f84e148baf4d9f9&oe=5F0C7535"
   ],
-  "locationSlug": null,
-  "ownerUsername": "avengers",
+  "childPosts": [...],
+  "locationSlug": "tesla-gigafactory-1",
   "isAdvertisement": false,
   "taggedUsers": [],
-  "latestComments": [
-    {
-      "ownerUsername": "_.jaheen._",
-      "text": "Who knew trailers can have the good stuff! 🙌🙌"
-    },
-    # ...
-  ]
+  "likedBy": []
 }
 ```
 
