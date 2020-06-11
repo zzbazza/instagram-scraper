@@ -86,7 +86,7 @@ const scrapePost = (request, itemSpec, entryData) => {
  * @param {Object} entryData data from window._shared_data.entry_data
  * @param {Object} input Input provided by user
  */
-const scrapePosts = async ({ page, itemSpec, entryData, scrollingState }) => {
+const scrapePosts = async ({ page, itemSpec, entryData, scrollingState, puppeteerPool }) => {
     const timeline = getPostsFromEntryData(itemSpec.pageType, entryData);
     initData[itemSpec.id] = timeline;
 
@@ -95,13 +95,22 @@ const scrapePosts = async ({ page, itemSpec, entryData, scrollingState }) => {
         const profilePageSel = '.ySN3v';
         const el = await page.$(`${profilePageSel}`);
         if (!el) {
-            throw new Error("Posts didn't load properly, opening again");
+            log(itemSpec, `Profile page didn't load properly, trying again...`, LOG_TYPES.ERROR);
+            throw new Error(`Profile page didn't load properly, trying again...`);
         }
         const privatePageSel = '.rkEop';
         const elPrivate = await page.$(`${privatePageSel}`);
         if (elPrivate) {
             log(itemSpec, 'Profile is private exiting..', LOG_TYPES.ERROR);
             return;
+        }
+    }
+
+    if (itemSpec.pageType === PAGE_TYPES.PLACE) {
+        const el = await page.$('.EZdmt');
+        if (!el) {
+            log(itemSpec, `Place/location page didn't load properly, trying again...`, LOG_TYPES.ERROR);
+            throw new Error(`Place/location page didn't load properly, trying again...`);
         }
     }
 
@@ -133,7 +142,16 @@ const scrapePosts = async ({ page, itemSpec, entryData, scrollingState }) => {
         && document.querySelector('article > h2').textContent === 'Most recent')
         : true;
 
-    if (initData[itemSpec.id].hasNextPage && hasMostRecentPostsOnHashtagPage) {
+    // Places/locations don't allow scrolling without login
+    const isUnloggedPlace = itemSpec.pageType === PAGE_TYPES.PLACE && !itemSpec.input.loginCookies;
+    if (isUnloggedPlace) {
+        log(itemSpec, `Place/location pages allow scrolling only under login, collecting initial posts and finishing`, LOG_TYPES.WARNING);
+        await puppeteerPool.retire(page.browser());
+        return;
+    }
+
+    const hasNextPage = initData[itemSpec.id].hasNextPage && hasMostRecentPostsOnHashtagPage;
+    if (hasNextPage) {
         const shouldContinue = shouldContinueScrolling({ itemSpec, scrollingState, oldItemCount: 0, type: 'posts' });
         if (shouldContinue) {
             await page.waitFor(1000);
@@ -145,6 +163,10 @@ const scrapePosts = async ({ page, itemSpec, entryData, scrollingState }) => {
                 type: 'posts',
             });
         }
+    } else {
+        // We have to forcefully close the browser here because it hangs sometimes for some listeners reasons
+        // Because we always have max one page per browser, this is fine
+        await puppeteerPool.retire(page.browser());
     }
 };
 

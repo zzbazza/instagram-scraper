@@ -7,7 +7,7 @@ const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments')
 const { scrapeDetails }  = require('./details');
 const { searchUrls } = require('./search');
 const { getItemSpec, parseExtendOutputFunction } = require('./helpers');
-const { GRAPHQL_ENDPOINT, ABORT_RESOURCE_TYPES, ABORT_RESOURCE_URL_INCLUDES, ABORT_RESOURCE_URL_DOWNLOAD_JS, SCRAPE_TYPES } = require('./consts');
+const { GRAPHQL_ENDPOINT, ABORT_RESOURCE_TYPES, ABORT_RESOURCE_URL_INCLUDES, ABORT_RESOURCE_URL_DOWNLOAD_JS, SCRAPE_TYPES, PAGE_TYPES } = require('./consts');
 const { initQueryIds } = require('./query_ids');
 const errors = require('./errors');
 
@@ -49,18 +49,6 @@ async function main() {
         if (proxy.useApifyProxy) proxy.apifyProxySession = `insta_session_${session}`;
     }
 
-    let urls;
-    if (Array.isArray(directUrls) && directUrls.length > 0) {
-        urls = directUrls;
-    } else {
-        urls = await searchUrls(input);
-    }
-
-    if (urls.length === 0) {
-        Apify.utils.log.info('No URLs to process');
-        process.exit(0);
-    }
-
     try {
         if (!proxy) throw errors.proxyIsRequired();
         if (!resultsType) throw errors.typeIsRequired();
@@ -79,10 +67,24 @@ async function main() {
         Apify.utils.log.warning('You are using Apify proxy but not residential group! It is very likely it will not work properly. Please contact support@apify.com for access to residential proxy.')
     }
 
-    const requestListSources = urls.map(url => ({
-        url,
-        userData: { limit: resultsLimit, scrapePostsUntilDate },
-    }));
+    let requestListSources;
+    if (Array.isArray(directUrls) && directUrls.length > 0) {
+        requestListSources = directUrls.map((url) => ({
+            url,
+            userData: { limit: resultsLimit, scrapePostsUntilDate },
+        }));
+    } else {
+        const urlsWithTypes = await searchUrls(input);
+        requestListSources = urlsWithTypes.map((urlObj) => ({
+            url: urlObj.url,
+            userData: { limit: resultsLimit, scrapePostsUntilDate, pageType: urlObj.pageType },
+        }));
+    }
+
+    if (requestListSources.length === 0) {
+        Apify.utils.log.info('No URLs to process');
+        process.exit(0);
+    }
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
 
@@ -104,10 +106,14 @@ async function main() {
         const isScrollPage = resultsType === SCRAPE_TYPES.POSTS || resultsType === SCRAPE_TYPES.COMMENTS;
         Apify.utils.log.debug(`Is scroll page: ${isScrollPage}`);
 
+        const { pageType } = request.userData;
+
         page.on('request', (req) => {
+            // We need to load some JS when we want to scroll
+            // Hashtag & place pages seems to require even more JS allowed but this needs more research
             const isJSBundle = req.url().includes('instagram.com/static/bundles/');
             const abortJSBundle = isScrollPage
-                ? !ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => req.url().includes(urlMatch))
+                ? (!ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => req.url().includes(urlMatch)) && ![PAGE_TYPES.HASHTAG, PAGE_TYPES.PLACE].includes(pageType))
                 : true
 
             if (
@@ -209,7 +215,7 @@ async function main() {
         } else {
             page.itemSpec = itemSpec;
             switch (resultsType) {
-                case SCRAPE_TYPES.POSTS: return scrapePosts({ page, request, itemSpec, entryData, input, scrollingState });
+                case SCRAPE_TYPES.POSTS: return scrapePosts({ page, request, itemSpec, entryData, input, scrollingState, puppeteerPool });
                 case SCRAPE_TYPES.COMMENTS: return scrapeComments({ page, itemSpec, entryData, scrollingState });
                 case SCRAPE_TYPES.DETAILS: return scrapeDetails({ input, request, itemSpec, entryData, page, proxy, userResult });
                 default: throw new Error('Not supported');
