@@ -6,7 +6,7 @@ const safeEval = require('safe-eval');
 const { URLSearchParams } = require('url');
 const errors = require('./errors');
 const { expandOwnerDetails } = require('./user-details');
-const { PAGE_TYPES, GRAPHQL_ENDPOINT } = require('./consts');
+const { PAGE_TYPES, GRAPHQL_ENDPOINT, LOG_TYPES } = require('./consts');
 
 /**
  * Takes object from _sharedData.entry_data and parses it into simpler object
@@ -158,7 +158,7 @@ async function query(gotParams, searchParams, nodeTransformationFunc, itemSpec, 
             return nodeTransformationFunc(body.data);
         } catch (error) {
             if (error.message.includes(429)) {
-                log(itemSpec, `${logPrefix} - Encountered rate limit error, waiting ${(retries + 1) * 10} seconds.`);
+                log(itemSpec, `${logPrefix} - Encountered rate limit error, waiting ${(retries + 1) * 10} seconds.`, LOG_TYPES.WARNING);
                 await Apify.utils.sleep((retries + 1) * 10000);
             } else await Apify.utils.log.error(error);
             retries++;
@@ -274,7 +274,7 @@ async function filterPushedItemsAndUpdateState ({ items, itemSpec, parsingFn, sc
             itemsToPush.push(item);
             scrollingState[itemSpec.id].ids[item.id] = true;
         } else {
-            Apify.utils.log.debug(`Item: ${item.id} was already pushed, skipping...`);
+            // Apify.utils.log.debug(`Item: ${item.id} was already pushed, skipping...`);
         }
     }
     // We have to tell the state if we are going though duplicates so it knows it should still continue scrolling
@@ -396,7 +396,7 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
         try {
             const response = await responsePromise;
             if (!response) {
-                Apify.utils.log.error(`Didn't receive a valid response in the current scroll, scrolling more...`);
+                log(itemSpec, `Didn't receive a valid response in the current scroll, scrolling more...`, LOG_TYPES.WARNING);
             } else {
                 const status = await response.status();
 
@@ -405,7 +405,7 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
                 }
 
                 if (status !== 200) {
-                    Apify.utils.log.error(`Got error status while scrolling: ${status}`);
+                    log(itemSpec, `Got error status while scrolling: ${status}`, LOG_TYPES.ERROR);
                 } else {
                     const json = await response.json();
                     // eslint-disable-next-line prefer-destructuring
@@ -414,7 +414,7 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
             }
         } catch (error) {
             // Apify.utils.log.error(error);
-            Apify.utils.log.warning('Non fatal error occured while scrolling:');
+            log(itemSpec, 'Non fatal error occured while scrolling:', LOG_TYPES.WARNING);
             console.dir(error);
         }
     }
@@ -443,7 +443,7 @@ const finiteScroll = async (context) => {
     const { data, rateLimited } = await loadMore({ itemSpec, page, type });
 
     if (rateLimited) {
-        Apify.utils.log.exception(`Scrolling got blocked by Instagram, finishing! Please increase the "scrollWaitSecs" input and run again.`);
+        log(itemSpec, `Scrolling got blocked by Instagram, finishing! Please increase the "scrollWaitSecs" input and run again.`, LOG_TYPES.EXCEPTION);
         return;
     }
 
@@ -451,9 +451,8 @@ const finiteScroll = async (context) => {
     if (data) {
         const timeline = getItemsFromGraphQLFn({ data, pageType: itemSpec.pageType });
         if (!timeline.hasNextPage) {
-            Apify.utils.log.warning(`Cannot find new page of scrolling`);
-            console.dir(data, { depth: null });
-            // await page.waitFor(2000000)
+            log(itemSpec, `Cannot find new page of scrolling, storing last page dump to KV store`, LOG_TYPES.WARNING);
+            await Apify.setValue(`LAST-PAGE-DUMP-${itemSpec.id}`, data);
             return
         };
     }
@@ -467,7 +466,7 @@ const finiteScroll = async (context) => {
         const modulo = oldItemCount % 100;
         if (modulo >= 0 && modulo < 12) { // Every 100 posts: Wait random for user passed time with some randomization
             const waitSecs = Math.round(scrollWaitSecs * (Math.random() + 1));
-            Apify.utils.log.info(`Sleeping for ${waitSecs} seconds to prevent getting rate limit error..`);
+            log(itemSpec, `Sleeping for ${waitSecs} seconds to prevent getting rate limit error..`);
             await page.waitFor(waitSecs * 1000);
         }
     }

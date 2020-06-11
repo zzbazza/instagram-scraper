@@ -1,6 +1,6 @@
 const Apify = require('apify');
 const { getCheckedVariable, log, finiteScroll, filterPushedItemsAndUpdateState, shouldContinueScrolling } = require('./helpers');
-const { PAGE_TYPES } = require('./consts');
+const { PAGE_TYPES, LOG_TYPES } = require('./consts');
 const { formatSinglePost } = require('./details');
 
 const initData = {};
@@ -100,7 +100,7 @@ const scrapePosts = async ({ page, itemSpec, entryData, scrollingState }) => {
         const privatePageSel = '.rkEop';
         const elPrivate = await page.$(`${privatePageSel}`);
         if (elPrivate) {
-            Apify.utils.log.info('Profile is private exiting..');
+            log(itemSpec, 'Profile is private exiting..', LOG_TYPES.ERROR);
             return;
         }
     }

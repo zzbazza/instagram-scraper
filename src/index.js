@@ -134,12 +134,14 @@ async function main() {
 
             console.log('caught response')
 
-            switch (resultsType) {
-                case SCRAPE_TYPES.POSTS: return handlePostsGraphQLResponse({ page, response, scrollingState })
-                    .catch(error => Apify.utils.log.error(error));
-                case SCRAPE_TYPES.COMMENTS: return handleCommentsGraphQLResponse({ page, response, scrollingState })
-                    .catch(error => Apify.utils.log.error(error));
-                // no default
+            try {
+                switch (resultsType) {
+                    case SCRAPE_TYPES.POSTS: return handlePostsGraphQLResponse({ page, response, scrollingState })
+                    case SCRAPE_TYPES.COMMENTS: return handleCommentsGraphQLResponse({ page, response, scrollingState })
+                }
+            } catch (e) {
+                Apify.utils.log.error(`Error happened while processing response: ${e.message}`);
+                console.log(e.stack);
             }
         });
 
@@ -162,12 +164,12 @@ async function main() {
 
     const handlePageFunction = async ({ page, puppeteerPool, request, response }) => {
         if (response.status() === 404) {
-            Apify.utils.log.info(`Page "${request.url}" does not exist.`);
+            Apify.utils.log.error(`Page "${request.url}" does not exist.`);
             return;
         }
         const error = await page.$('body.p-error');
         if (error) {
-            Apify.utils.log.info(`Page "${request.url}" cannot be displayed.`);
+            Apify.utils.log.error(`Page "${request.url}" is private and cannot be displayed.`);
             return;
         }
         // eslint-disable-next-line no-underscore-dangle
@@ -241,7 +243,7 @@ async function main() {
 
         // If request failed 4 times then this function is executed.
         handleFailedRequestFunction: async ({ request }) => {
-            Apify.utils.log.error(`${request.url}: Request ${request.url} failed 4 times`);
+            Apify.utils.log.error(`${request.url}: Request ${request.url} failed ${maxRequestRetries + 1} times, not retrying any more`);
             await Apify.pushData({
                 '#debug': Apify.utils.createRequestDebugInfo(request),
                 '#error': request.url,

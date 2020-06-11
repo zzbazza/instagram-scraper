@@ -1,6 +1,6 @@
 const Apify = require('apify');
 const { getCheckedVariable, log, filterPushedItemsAndUpdateState, finiteScroll } = require('./helpers');
-const { PAGE_TYPES, GRAPHQL_ENDPOINT } = require('./consts');
+const { PAGE_TYPES, GRAPHQL_ENDPOINT, LOG_TYPES } = require('./consts');
 const errors = require('./errors');
 
 const initData = {};
@@ -14,7 +14,7 @@ const getCommentsFromGraphQL = ({ data }) => {
     let shortcode_media;
     // TODO remove this garbage :)
     if (data.data) {
-        console.log('HAD NESTED DATA')
+        log(itemSpec, 'HAD NESTED DATA', LOG_TYPES.WARNING)
         shortcode_media = data.data.shortcode_media;
     } else {
         shortcode_media = data.shortcode_media;

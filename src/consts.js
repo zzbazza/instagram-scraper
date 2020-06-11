@@ -1,4 +1,12 @@
 module.exports = {
+    // Types of Apify.utils.log
+    LOG_TYPES: {
+        DEBUG: 'debug',
+        INFO: 'info',
+        WARNING: 'warning',
+        ERROR: 'error',
+        EXCEPTION: 'exception'
+    },
     // Types of pages which this actor is able to process
     PAGE_TYPES: {
         PLACE: 'location',
