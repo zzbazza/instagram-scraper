@@ -1,13 +1,13 @@
 {
     "title": "Input schema for Instagram scraper",
-    "description": "Below you can provide search query which will be used to search Instagram for profiles, hashtags or places. Alternatively you can provide direct page urls. <br />Then on each page you can scrape page details, posts or comments. <br/> <strong>Important: Proxy is required to use this solution</strong>",
+    "description": "Below you can provide search query which will be used to search Instagram for profiles, hashtags or places. Alternatively you can provide direct page URLs. <br />Then on each page you can scrape page details, posts or comments. <br/> <strong>Important: Proxy is required to use this solution</strong>",
     "type": "object",
     "schemaVersion": 1,
     "properties": {
         "search": {
             "title": "Search",
             "type": "string",
-            "description": "Here you can provide a search query which will be used to search Instagram for profiles, hashtags or places. <br /><br /><strong>This field is optional, but this field or 'Direct Instagram page URLs' must be provided (or both)</strong>",
+            "description": "Here you can provide a search query which will be used to search Instagram for profiles, hashtags or places. <br /><br /><strong>This field is optional, but this field or 'Direct Instagram page URLs' must be provided</strong>",
             "editor": "textfield",
             "prefill": "Nature"
         },
@@ -32,7 +32,7 @@
         "directUrls": {
             "title": "Direct Instagram page URLs",
             "type": "array",
-            "description": "If you already have URL(s) of page(s) you wish to scrape, you can set them here. <br /><br /><strong>This field is optional, but this field or 'Search' must be provided (or both)</strong>",
+            "description": "If you already have URL(s) of page(s) you wish to scrape, you can set them here. <br /><br /><strong>This field is optional, but this field or 'Search' must be provided</strong>",
             "editor": "stringList",
             "placeholderValue": "URL",
             "patternValue": "https:\\/\\/www\\.instagram\\.com\\/.+",
@@ -47,7 +47,7 @@
             "enumTitles": [
                 "Posts (from profile pages, hashtag or place search)",
                 "Comments (from post pages)",
-                "Details (of profiles, posts or search pages - from profile, post or search pages)"],
+                "Details (of profiles, posts or search pages - from a profile, post or search pages)"],
             "default": "posts"
         },
         "resultsLimit": {
@@ -61,19 +61,19 @@
         "maxRequestRetries": {
             "title": "Max request retries",
             "type": "integer",
-            "description": "How many times a pge will be retried in case of being blocked or other errors.",
+            "description": "How many times a page will be retried in case of being blocked or other errors.",
             "default": 5
         },
         "scrapePostsUntilDate": {
             "title": "Scrape posts until date",
             "type": "string",
-            "description": "Scrapes post from the latest until it reaches older than provided date. The date should be in format YYYY-MM-DD. By defautl scrapes all posts.",
+            "description": "Scrapes post from the current date until it reaches a post older than a provided date. The date should be in format YYYY-MM-DD. By default scrapes all posts.",
             "editor": "textfield"
         },
         "scrollWaitSecs": {
             "title": "Scroll wait seconds",
             "type": "integer",
-            "description": "How many seconds it will wait every 100 posts/comments when scrolling. If you scrape more than 1000 items, it is important to slow down to not get blocked. The seconds are randomized a bit. If you get blocked, increase this number.",
+            "description": "How many seconds it will wait every 100 posts/comments when scrolling. If you scrape more than 1000 items, it is important to slow down to not get blocked. The seconds are randomized a bit. If you get blocked anyway, try to increase this number.",
             "default": 15
         },
         "proxy": {
@@ -86,10 +86,10 @@
         "loginCookies": {
             "title": "Cookies",
             "type": "array",
-            "description": "If you want to sign in to instagram to have access to more data than on anonymous profile, but do not wish to have your credentials in input, then you can use your cookies.",
+            "description": "If you want to sign in to Instagram to have access to more data than on anonymous profile, but do not wish to have your credentials in input, then you can use your cookies.",
             "editor": "json",
             "sectionCaption": "Login using cookies",
-            "sectionDescription": "Instagram limits access to certain data (likes, post user data, followers and others) if user is anonymous. You can provide you cookies here (copied from chrome plugin like 'EditThisCookie' to use a normal account. Do not use your own cookies here and rather create a new temporary account. When cookies are used, the run is limited to concurrency 1 and one session, so that the account does not get banned too soon."
+            "sectionDescription": "Instagram limits access to certain data (likes, post user data, followers and others) if a user is anonymous. You can provide your cookies here (copied from chrome plugin like 'EditThisCookie' to use a normal account. Do not use your own cookies here and rather create a new temporary account. When cookies are used, the run is limited to concurrency 1 and one session, so that the account does not get banned too soon."
         },
         "likedByLimit": {
             "title": "Get post likes",
@@ -99,7 +99,7 @@
             "unit": "likes",
             "default": 0,
             "sectionCaption": "Additional data loaded from detail pages",
-            "sectionDescription": "If limits in this section are set above 0, then when the solution enters a page, it attempts to load the specified items until limit is reached. All of the options below require login credentials."
+            "sectionDescription": "If limits in this section are set above 0, then when the solution enters a page, it attempts to load the specified items until the limit is reached. All of the options below require login credentials."
         },
         "followingLimit": {
             "title": "Get profile following",
@@ -120,16 +120,16 @@
         "expandOwners": {
             "title": "Query post owner",
             "type": "boolean",
-            "description": "If this feature is used, then for each post the solution will attempt to query additional details about it's owner. This will drastically slow down crawling speed and increase chance of an account ban if credentials are provided.",
+            "description": "If this feature is used, then for each post the solution will attempt to query additional details about it's owner. This will drastically slow down the crawling speed and increase the chance of an account ban if credentials are provided.",
             "editor": "checkbox",
             "sectionCaption": "Experimental features",
-            "sectionDescription": "Features in this section are highly experimental, can result in ban of account if logged in and might cause the solution to fail."
+            "sectionDescription": "Features in this section are highly experimental, can result in a ban of the account if logged in and might cause the solution to fail."
         },
         "extendOutputFunction": {
             "title": "Extend output function",
             "type": "string",
             "nullable": true,
-            "description": "Function that takes a JQuery handle ($) as argument and returns data that will be merged with the default output",
+            "description": "Function that takes a JQuery handle ($) as an argument and returns data that will be merged with the default output",
             "prefill": "($) => { return {} }",
             "editor": "javascript"
         }
