@@ -69,6 +69,7 @@ async function main() {
 
     let requestListSources;
     if (Array.isArray(directUrls) && directUrls.length > 0) {
+        Apify.utils.log.warning('Search is disabled when Direct URLs are used');
         requestListSources = directUrls.map((url) => ({
             url,
             userData: { limit: resultsLimit, scrapePostsUntilDate },
@@ -138,7 +139,7 @@ async function main() {
             // Wait for the page to parse it's data
             while (!page.itemSpec) await page.waitFor(100);
 
-            console.log('caught response')
+            // console.log('caught response')
 
             try {
                 switch (resultsType) {
