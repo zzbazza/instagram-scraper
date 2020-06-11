@@ -47,6 +47,9 @@ Apify platform [provides residential proxies](https://apify.com/proxy?pricing=re
 ### Custom proxies
 You can also use proxies from other providers in the custom proxies fields (`proxyUrls` in the JSON settings).
 
+## Scrolling through large profiles or posts
+Instagram imposes a rate limits that will block the scrolling if you want to scroll for more than 1000 posts or comments. To workaround this issue, this scraper starts injecting randomized wait times once you reach 1000 posts or comments. This is configurable by the `scrollWaitSecs` input parameter. If you get the message that you were rate limited, consider increasing this parameter for the specific profile or post.
+
 ## Input parameters
 
 The input of this scraper should be JSON containing the list of pages on Instagram that should be visited. Required fields are:
