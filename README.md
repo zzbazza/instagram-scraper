@@ -19,7 +19,7 @@ The Instagram data scraper supports the following features:
 
 - Scrape hashtags - query hastags matched by search keyword you can either scrape posts or scrape metadata from each hashtag
 
-- Scrape places - query places matched by search keyword you can either scrape posts or scrape metadata from each place
+- Scrape places/locations - query places matched by search keyword you can either scrape posts or scrape metadata from each place (scrolling for more posts in places/locations in only possible when logged in)
 
 - Scrape comments - you can scrape comments from any post
 
