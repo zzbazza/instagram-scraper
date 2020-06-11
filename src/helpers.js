@@ -407,7 +407,13 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
                 if (status !== 200) {
                     log(itemSpec, `Got error status while scrolling: ${status}`, LOG_TYPES.ERROR);
                 } else {
-                    const json = await response.json();
+                    try {
+                        const json = await response.json();
+                    } catch (e) {
+                        log(itemSpec, 'Cannot parse response body', LOG_TYPES.EXCEPTION);
+                        console.dir(response);
+                    }
+
                     // eslint-disable-next-line prefer-destructuring
                     if (json) data = json.data;
                 }
