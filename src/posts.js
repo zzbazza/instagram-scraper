@@ -165,8 +165,13 @@ async function handlePostsGraphQLResponse({ page, response, scrollingState }) {
     // Skip queries for other stuff then posts
     if (!responseUrl.includes(checkedVariable) || !responseUrl.includes('%22first%22')) return;
 
-    const data = await response.json();
-
+    // If it fails here, it means that the error was caught in the finite scroll anyway so we just don't do anything
+    let data;
+    try {
+        data = await response.json();
+    } catch (e) {
+        return;
+    }
     const timeline = getPostsFromGraphQL({ pageType: itemSpec.pageType, data: data.data });
 
     if (!initData[itemSpec.id]) initData[itemSpec.id] = timeline;

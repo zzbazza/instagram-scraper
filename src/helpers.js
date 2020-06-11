@@ -392,12 +392,16 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
     }
 
     let data = null;
-    if (scrolled[1] || clicked[1]) {
+    const response = await responsePromise;
+    if (!response) {
+        log(itemSpec, `Didn't receive a valid response in the current scroll, scrolling again...`, LOG_TYPES.WARNING);
+    } else {
+    // if (scrolled[1] || clicked[1]) {
         try {
-            const response = await responsePromise;
-            if (!response) {
-                log(itemSpec, `Didn't receive a valid response in the current scroll, scrolling more...`, LOG_TYPES.WARNING);
-            } else {
+            //const response = await responsePromise;
+            //if (!response) {
+            //    log(itemSpec, `Didn't receive a valid response in the current scroll, scrolling more...`, LOG_TYPES.WARNING);
+            //} else {
                 const status = await response.status();
 
                 if (status === 429) {
@@ -407,8 +411,9 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
                 if (status !== 200) {
                     log(itemSpec, `Got error status while scrolling: ${status}`, LOG_TYPES.ERROR);
                 } else {
+                    let json;
                     try {
-                        const json = await response.json();
+                        json = await response.json();
                     } catch (e) {
                         log(itemSpec, 'Cannot parse response body', LOG_TYPES.EXCEPTION);
                         console.dir(response);
@@ -417,7 +422,7 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
                     // eslint-disable-next-line prefer-destructuring
                     if (json) data = json.data;
                 }
-            }
+            // }
         } catch (error) {
             // Apify.utils.log.error(error);
             log(itemSpec, 'Non fatal error occured while scrolling:', LOG_TYPES.WARNING);
@@ -426,6 +431,14 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
     }
 
     if (!data && retry < 10 && (scrolled[1] || retry < 5)) {
+        // We scroll the other direction than usual
+        let scrollYAxis;
+        if (type === 'posts') {
+            scrollYAxis = -1000;
+        } else if (type === 'comments') {
+            scrollYAxis = 1000;
+        }
+        await page.evaluate((scrollYAxis) => scrollBy(0, scrollYAxis), scrollYAxis)
         const retryDelay = retry ? (retry + 1) * retry * 1000 : (retry + 1) * 1000;
         log(itemSpec, `Retry scroll after ${retryDelay / 1000} seconds`);
         await page.waitFor(retryDelay);
@@ -455,8 +468,8 @@ const finiteScroll = async (context) => {
 
     // console.log('Getting data from graphQl')
     if (data) {
-        const timeline = getItemsFromGraphQLFn({ data, pageType: itemSpec.pageType });
-        if (!timeline.hasNextPage) {
+        const { hasNextPage } = getItemsFromGraphQLFn({ data, pageType: itemSpec.pageType });
+        if (!hasNextPage) {
             log(itemSpec, `Cannot find new page of scrolling, storing last page dump to KV store`, LOG_TYPES.WARNING);
             await Apify.setValue(`LAST-PAGE-DUMP-${itemSpec.id}`, data);
             return
@@ -477,8 +490,8 @@ const finiteScroll = async (context) => {
         }
     }
 
-    // Small ranom wait (100-300ms) in between each scroll
-    const waitMs = Math.round(100 * (Math.random() * 2 + 1));
+    // Small ranom wait (200-600ms) in between each scroll
+    const waitMs = Math.round(200 * (Math.random() * 2 + 1));
     // console.log(`Waiting for ${waitMs} ms`);
     await page.waitFor(waitMs);
 
