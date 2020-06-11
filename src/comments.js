@@ -11,7 +11,15 @@ const initData = {};
  * @param {Object} data GraphQL data
  */
 const getCommentsFromGraphQL = ({ data }) => {
-    const timeline = data && data.shortcode_media && data.shortcode_media.edge_media_to_parent_comment;
+    let shortcode_media;
+    // TODO remove this garbage :)
+    if (data.data) {
+        console.log('HAD NESTED DATA')
+        shortcode_media = data.data.shortcode_media;
+    } else {
+        shortcode_media = data.shortcode_media;
+    }
+    const timeline = shortcode_media && shortcode_media.edge_media_to_parent_comment;
     const commentItems = timeline ? timeline.edges.reverse() : [];
     const commentsCount = timeline ? timeline.count : null;
     const hasNextPage = timeline ? timeline.page_info.has_next_page : false;
@@ -58,7 +66,7 @@ const scrapeComments = async ({ page, itemSpec, entryData, scrollingState }) => 
 
     const willContinueScroll = initData[itemSpec.id].hasNextPage && Object.keys(scrollingState[itemSpec.id].ids).length < itemSpec.limit;
     if (willContinueScroll) {
-        await page.waitFor(1000);
+        // await page.waitFor(1000);
         await finiteScroll({
             itemSpec,
             page,

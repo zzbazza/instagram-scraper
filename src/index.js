@@ -132,6 +132,8 @@ async function main() {
             // Wait for the page to parse it's data
             while (!page.itemSpec) await page.waitFor(100);
 
+            console.log('caught response')
+
             switch (resultsType) {
                 case SCRAPE_TYPES.POSTS: return handlePostsGraphQLResponse({ page, response, scrollingState })
                     .catch(error => Apify.utils.log.error(error));
@@ -186,6 +188,7 @@ async function main() {
         itemSpec.limit = request.userData.limit || 999999;
         itemSpec.scrapePostsUntilDate = request.userData.scrapePostsUntilDate;
         itemSpec.input = input;
+        itemSpec.scrollWaitSecs = scrollWaitSecs;
 
         let userResult = {};
         if (extendOutputFunction) {

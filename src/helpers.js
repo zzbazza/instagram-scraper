@@ -95,9 +95,9 @@ const getCheckedVariable = (pageType) => {
  * @param {Object} pageData Parsed page data
  * @param {String} message Message to be outputed
  */
-function log (pageData, message) {
-    const label = getLogLabel(pageData);
-    Apify.utils.log.info(`${label}: ${message}`);
+function log (itemSpec, message, type = 'info') {
+    const label = getLogLabel(itemSpec);
+    Apify.utils.log[type](`${label}: ${message}`);
 };
 
 const grapqlEndpoint = 'https://www.instagram.com/graphql/query/';
@@ -243,7 +243,6 @@ function hasReachedLastPostDate (scrapePostsUntilDate, lastPostDate) {
         const willContinue = scrapePostsUntilDateAsDate < lastPostDateAsDate;
         if (!willContinue) {
             console.warn(`Reached post with older date than our limit: ${lastPostDateAsDate}. Finishing scrolling...`);
-            console.log('returning true');
             return true;
         }
     }
@@ -264,7 +263,7 @@ async function filterPushedItemsAndUpdateState ({ items, itemSpec, parsingFn, sc
     let itemsToPush = [];
     for (const item of parsedItems) {
         if (Object.keys(scrollingState[itemSpec.id].ids).length >= limit) {
-            Apify.utils.log.info(`Item: ${item.id} reached limit of ${limit} results, stopping...`);
+            log(itemSpec, `Reached user provided limit of ${limit} results, stopping...`);
             break;
         }
         if (scrapePostsUntilDate && hasReachedLastPostDate(scrapePostsUntilDate, item.timestamp)) {
@@ -322,6 +321,7 @@ const shouldContinueScrolling = ({ scrollingState, itemSpec, oldItemCount, type 
 }
 
 const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
+    // console.log('Starting load more fn')
     await page.keyboard.press('PageUp');
     const checkedVariable = getCheckedVariable(itemSpec.pageType);
     const responsePromise = page.waitForResponse(
@@ -334,6 +334,7 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
         { timeout: 100000 },
     ).catch(() => null);
 
+    // comments scroll up with button
     let clicked = [];
     for (let i = 0; i < 10; i++) {
         let elements;
@@ -346,7 +347,7 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
         }
 
         if (elements.length === 0) {
-            break;
+            continue;
         }
         const [button] = elements;
 
@@ -367,49 +368,62 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
         if (clicked[1]) break;
     }
 
-    let scrolled;
-    for (let i = 0; i < 10; i++) {
-        scrolled = await Promise.all([
-            // eslint-disable-next-line no-restricted-globals
-            page.evaluate(() => scrollBy(0, 9999999)),
-            page.waitForRequest(
-                (request) => {
-                    const requestUrl = request.url();
-                    return requestUrl.startsWith(GRAPHQL_ENDPOINT)
-                        && requestUrl.includes(checkedVariable)
-                        && requestUrl.includes('%22first%22');
-                },
-                {
-                    timeout: 1000,
-                },
-            ).catch(() => null),
-        ]);
-        if (scrolled[1]) break;
+    // posts scroll down
+    let scrolled = [];
+    if (type === 'posts') {
+        for (let i = 0; i < 10; i++) {
+            scrolled = await Promise.all([
+                // eslint-disable-next-line no-restricted-globals
+                page.evaluate(() => scrollBy(0, 9999999)),
+                page.waitForRequest(
+                    (request) => {
+                        const requestUrl = request.url();
+                        return requestUrl.startsWith(GRAPHQL_ENDPOINT)
+                            && requestUrl.includes(checkedVariable)
+                            && requestUrl.includes('%22first%22');
+                    },
+                    {
+                        timeout: 1000,
+                    },
+                ).catch(() => null),
+            ]);
+            if (scrolled[1]) break;
+        }
     }
 
     let data = null;
     if (scrolled[1] || clicked[1]) {
         try {
             const response = await responsePromise;
-            const json = await response.json();
-            const status = await response.status();
-            // console.log('Scroll status:', status);
-            if (status === 429) {
-                return { rateLimited: true };
+            if (!response) {
+                Apify.utils.log.error(`Didn't receive a valid response in the current scroll, scrolling more...`);
+            } else {
+                const status = await response.status();
+
+                if (status === 429) {
+                    return { rateLimited: true };
+                }
+
+                if (status !== 200) {
+                    Apify.utils.log.error(`Got error status while scrolling: ${status}`);
+                } else {
+                    const json = await response.json();
+                    // eslint-disable-next-line prefer-destructuring
+                    if (json) data = json.data;
+                }
             }
-            // eslint-disable-next-line prefer-destructuring
-            if (json) data = json.data;
         } catch (error) {
-            Apify.utils.log.error(error);
+            // Apify.utils.log.error(error);
+            Apify.utils.log.warning('Non fatal error occured while scrolling:');
+            console.dir(error);
         }
     }
 
     if (!data && retry < 10 && (scrolled[1] || retry < 5)) {
-        const retryDelay = retry ? ++retry * retry * 1000 : ++retry * 1000;
+        const retryDelay = retry ? (retry + 1) * retry * 1000 : (retry + 1) * 1000;
         log(itemSpec, `Retry scroll after ${retryDelay / 1000} seconds`);
         await page.waitFor(retryDelay);
-        const returnData = await loadMore({ itemSpec, page, retry, type });
-        return { data: returnData };
+        return loadMore({ itemSpec, page, retry: retry + 1, type });
     }
 
     await page.waitFor(100);
@@ -424,6 +438,7 @@ const finiteScroll = async (context) => {
         getItemsFromGraphQLFn,
         type,
     } = context;
+    // console.log('starting finite scroll');
     const oldItemCount = Object.keys(scrollingState[itemSpec.id].ids).length;
     const { data, rateLimited } = await loadMore({ itemSpec, page, type });
 
@@ -432,15 +447,22 @@ const finiteScroll = async (context) => {
         return;
     }
 
+    // console.log('Getting data from graphQl')
     if (data) {
         const timeline = getItemsFromGraphQLFn({ data, pageType: itemSpec.pageType });
-        if (!timeline.hasNextPage) return;
+        if (!timeline.hasNextPage) {
+            Apify.utils.log.warning(`Cannot find new page of scrolling`);
+            console.dir(data, { depth: null });
+            // await page.waitFor(2000000)
+            return
+        };
     }
+    // console.log('Got data from graphQl')
 
     // There is a rate limit in scrolling, we don;t know exactly how much
     // If you reach it, it will block you completely so it is necessary to wait more in scrolls
     // Seems the biggest block chance is when you are over 2000 items
-    const { scrollWaitSecs } = itemSpec.input;
+    const { scrollWaitSecs } = itemSpec;
     if (oldItemCount > 1000) {
         const modulo = oldItemCount % 100;
         if (modulo >= 0 && modulo < 12) { // Every 100 posts: Wait random for user passed time with some randomization
@@ -450,8 +472,9 @@ const finiteScroll = async (context) => {
         }
     }
 
-    // Small ranom wait (200-600ms) in between each scroll
-    const waitMs = Math.round(200 * (Math.random() * 2 + 1));
+    // Small ranom wait (100-300ms) in between each scroll
+    const waitMs = Math.round(100 * (Math.random() * 2 + 1));
+    // console.log(`Waiting for ${waitMs} ms`);
     await page.waitFor(waitMs);
 
     const doContinue = shouldContinueScrolling({ scrollingState, itemSpec, oldItemCount, type })
