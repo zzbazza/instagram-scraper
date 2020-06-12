@@ -481,6 +481,7 @@ const finiteScroll = async (context) => {
         if (!hasNextPage) {
             log(itemSpec, `Cannot find new page of scrolling, storing last page dump to KV store`, LOG_TYPES.WARNING);
             await Apify.setValue(`LAST-PAGE-DUMP-${itemSpec.id}`, data);
+            // We have to do these retires because the browser sometimes hang on, should be fixable with something else though
             await puppeteerPool.retire(page.browser());
             return
         };
@@ -509,6 +510,9 @@ const finiteScroll = async (context) => {
 
     if (doContinue) {
         await finiteScroll(context);
+    } else {
+        await puppeteerPool.retire(page.browser());
+        return
     }
 };
 

@@ -33,7 +33,7 @@ const getCommentsFromGraphQL = ({ data }) => {
  * @param {Object} itemSpec Parsed page data
  * @param {Object} entryData data from window._shared_data.entry_data
  */
-const scrapeComments = async ({ page, itemSpec, entryData, scrollingState, finiteScroll }) => {
+const scrapeComments = async ({ page, itemSpec, entryData, scrollingState, puppeteerPool }) => {
     // Check that current page is of a type which has comments
     if (itemSpec.pageType !== PAGE_TYPES.POST) throw errors.notPostPage();
 

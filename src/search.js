@@ -42,11 +42,8 @@ const searchUrls = async (input) => {
     else if (searchType === SEARCH_TYPES.PLACE) urls = response.places.map(formatPlaceResult);
     else if (searchType === SEARCH_TYPES.HASHTAG) urls = response.hashtags.map(formatHashtagResult);
 
-    Apify.utils.log.info(`Found  search results. Limited to ${searchLimit}.`);
-    const originalLength = urls.length;
+    Apify.utils.log.info(`Found ${urls.length} search results. Limiting to ${searchLimit}.`);
     urls = urls.slice(0, searchLimit);
-
-    Apify.utils.log.info(`Search found ${originalLength} URLs after limiting to ${searchLimit}:`);
 
     return urls;
 };

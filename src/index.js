@@ -75,9 +75,10 @@ async function main() {
         urls = await searchUrls(input);
     }
 
-    const requestListSources = directUrls.map((url) => ({
+    const requestListSources = urls.map((url) => ({
         url,
         userData: {
+            // TODO: This should be the only page type we ever need, remove the one from entryData
             pageType: getPageTypeFromUrl(url),
         },
     }));
