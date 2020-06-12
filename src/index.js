@@ -6,7 +6,7 @@ const { scrapePosts, handlePostsGraphQLResponse, scrapePost } = require('./posts
 const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments');
 const { scrapeDetails }  = require('./details');
 const { searchUrls } = require('./search');
-const { getItemSpec, parseExtendOutputFunction } = require('./helpers');
+const { getItemSpec, parseExtendOutputFunction, getPageTypeFromUrl } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORT_RESOURCE_TYPES, ABORT_RESOURCE_URL_INCLUDES, ABORT_RESOURCE_URL_DOWNLOAD_JS, SCRAPE_TYPES, PAGE_TYPES } = require('./consts');
 const { initQueryIds } = require('./query_ids');
 const errors = require('./errors');
@@ -67,20 +67,23 @@ async function main() {
         Apify.utils.log.warning('You are using Apify proxy but not residential group! It is very likely it will not work properly. Please contact support@apify.com for access to residential proxy.')
     }
 
-    let requestListSources;
+    let urls;
     if (Array.isArray(directUrls) && directUrls.length > 0) {
         Apify.utils.log.warning('Search is disabled when Direct URLs are used');
-        requestListSources = directUrls.map((url) => ({
-            url,
-            userData: { limit: resultsLimit, scrapePostsUntilDate },
-        }));
+        urls = directUrls
     } else {
-        const urlsWithTypes = await searchUrls(input);
-        requestListSources = urlsWithTypes.map((urlObj) => ({
-            url: urlObj.url,
-            userData: { limit: resultsLimit, scrapePostsUntilDate, pageType: urlObj.pageType },
-        }));
+        urls = await searchUrls(input);
     }
+
+    const requestListSources = directUrls.map((url) => ({
+        url,
+        userData: {
+            pageType: getPageTypeFromUrl(url),
+        },
+    }));
+
+    Apify.utils.log.info(`Parsed start URLs:`);
+    console.dir(requestListSources);
 
     if (requestListSources.length === 0) {
         Apify.utils.log.info('No URLs to process');
@@ -108,6 +111,7 @@ async function main() {
         Apify.utils.log.debug(`Is scroll page: ${isScrollPage}`);
 
         const { pageType } = request.userData;
+        Apify.utils.log.info(`Opening page type: ${pageType} on ${request.url}`);
 
         page.on('request', (req) => {
             // We need to load some JS when we want to scroll
@@ -194,8 +198,8 @@ async function main() {
 
         const itemSpec = getItemSpec(entryData);
         // Passing the limit around
-        itemSpec.limit = request.userData.limit || 999999;
-        itemSpec.scrapePostsUntilDate = request.userData.scrapePostsUntilDate;
+        itemSpec.limit = resultsLimit || 999999;
+        itemSpec.scrapePostsUntilDate = scrapePostsUntilDate;
         itemSpec.input = input;
         itemSpec.scrollWaitSecs = scrollWaitSecs;
 
@@ -217,7 +221,7 @@ async function main() {
             page.itemSpec = itemSpec;
             switch (resultsType) {
                 case SCRAPE_TYPES.POSTS: return scrapePosts({ page, request, itemSpec, entryData, input, scrollingState, puppeteerPool });
-                case SCRAPE_TYPES.COMMENTS: return scrapeComments({ page, itemSpec, entryData, scrollingState });
+                case SCRAPE_TYPES.COMMENTS: return scrapeComments({ page, itemSpec, entryData, scrollingState, puppeteerPool });
                 case SCRAPE_TYPES.DETAILS: return scrapeDetails({ input, request, itemSpec, entryData, page, proxy, userResult });
                 default: throw new Error('Not supported');
             }

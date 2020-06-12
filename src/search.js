@@ -4,18 +4,9 @@ const { SEARCH_TYPES, PAGE_TYPES } = require('./consts');
 const errors = require('./errors');
 
 // Helper functions that create direct links to search results
-const formatPlaceResult = item => ({
-    url: `https://www.instagram.com/explore/locations/${item.place.location.pk}/${item.place.slug}/`,
-    pageType: PAGE_TYPES.PLACE,
-})
-const formatUserResult = item => ({
-    url: `https://www.instagram.com/${item.user.username}/`,
-    pageType: PAGE_TYPES.PROFILE,
-});
-const formatHashtagResult = item => ({
-    url: `https://www.instagram.com/explore/tags/${item.hashtag.name}/`,
-    pageType: PAGE_TYPES.HASHTAG,
-})
+const formatPlaceResult = item => `https://www.instagram.com/explore/locations/${item.place.location.pk}/${item.place.slug}/`;
+const formatUserResult = item => `https://www.instagram.com/${item.user.username}/`;
+const formatHashtagResult = item => `https://www.instagram.com/explore/tags/${item.hashtag.name}/`;
 
 /**
  * Attempts to query Instagram search and parse found results into direct links to instagram pages
@@ -56,7 +47,6 @@ const searchUrls = async (input) => {
     urls = urls.slice(0, searchLimit);
 
     Apify.utils.log.info(`Search found ${originalLength} URLs after limiting to ${searchLimit}:`);
-    console.dir(urls);
 
     return urls;
 };
