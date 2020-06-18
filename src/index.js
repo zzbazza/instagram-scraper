@@ -41,12 +41,13 @@ async function main() {
     let maxConcurrency = 1000;
 
     const usingLogin = loginCookies && Array.isArray(loginCookies);
+    let proxySession;
 
     if (usingLogin) {
         Apify.utils.log.warning('Cookies were used, setting maxConcurrency to 1 and using one proxy session!');
         maxConcurrency = 1;
         const session = crypto.createHash('sha256').update(JSON.stringify(loginCookies)).digest('hex').substring(0,16)
-        if (proxy.useApifyProxy) proxy.apifyProxySession = `insta_session_${session}`;
+        if (proxy.useApifyProxy) proxySession = proxy.apifyProxySession = `insta_session_${session}`;
     }
 
     try {
@@ -72,7 +73,7 @@ async function main() {
         Apify.utils.log.warning('Search is disabled when Direct URLs are used');
         urls = directUrls
     } else {
-        urls = await searchUrls(input);
+        urls = await searchUrls(input, proxy ? Apify.getApifyProxyUrl({ groups: proxy.apifyProxyGroups, session: proxySession }) : undefined);
     }
 
     const requestListSources = urls.map((url) => ({

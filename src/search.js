@@ -12,7 +12,7 @@ const formatHashtagResult = item => `https://www.instagram.com/explore/tags/${it
  * Attempts to query Instagram search and parse found results into direct links to instagram pages
  * @param {Object} input Input loaded from Apify.getInput();
  */
-const searchUrls = async (input) => {
+const searchUrls = async (input, proxy) => {
     const { search, searchType, searchLimit = 10 } = input;
     if (!search) return [];
 
@@ -35,6 +35,7 @@ const searchUrls = async (input) => {
     const response = await request({
         url: searchUrl,
         json: true,
+        proxy,
     });
 
     Apify.utils.log.debug('Response', { response });
