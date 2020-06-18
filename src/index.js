@@ -245,7 +245,7 @@ async function main() {
         launchPuppeteerOptions: {
             ...proxy,
             stealth: true,
-            useChrome: true,
+            useChrome: Apify.isAtHome(),
             ignoreHTTPSErrors: true,
             args: ['--enable-features=NetworkService', '--ignore-certificate-errors'],
         },
