@@ -12,7 +12,7 @@ const formatHashtagResult = item => `https://www.instagram.com/explore/tags/${it
  * Attempts to query Instagram search and parse found results into direct links to instagram pages
  * @param {Object} input Input loaded from Apify.getInput();
  */
-const searchUrls = async (input, proxy) => {
+const searchUrls = async (input, proxy, isRetry = false) => {
     const { search, searchType, searchLimit = 10 } = input;
     if (!search) return [];
 
@@ -40,8 +40,17 @@ const searchUrls = async (input, proxy) => {
 
     Apify.utils.log.debug('Response', { response });
 
-    if (typeof response !== 'object' && process.env.APIFY_LOG_LEVEL === 'DEBUG') {
-        await Apify.setValue(`RESPONSE-${Math.random()}`, response, { contentType: 'text/plain' });
+    if (typeof response !== 'object') {
+        if (process.env.APIFY_LOG_LEVEL === 'DEBUG') {
+            await Apify.setValue(`RESPONSE-${Math.random()}`, response, { contentType: 'text/plain' });
+        }
+
+        if (!isRetry) {
+            Apify.utils.log.warning('Server returned non-json answer, retrying one more time');
+            return searchUrls(input, proxy, true);
+        }
+
+        throw new Error('Search is blocked on current proxy IP');
     }
 
     let urls;
