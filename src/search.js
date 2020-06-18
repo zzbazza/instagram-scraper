@@ -37,7 +37,7 @@ const searchUrls = async (input) => {
         json: true,
     });
 
-    Apify.utils.log.debug('Response', response);
+    Apify.utils.log.debug('Response', { response });
 
     let urls;
     if (searchType === SEARCH_TYPES.USER) urls = response.users.map(formatUserResult);
