@@ -39,6 +39,10 @@ const searchUrls = async (input) => {
 
     Apify.utils.log.debug('Response', { response });
 
+    if (typeof response !== 'object' && process.env.APIFY_LOG_LEVEL === 'DEBUG') {
+        await Apify.setValue(`RESPONSE-${Math.random()}`, response, { contentType: 'text/plain' });
+    }
+
     let urls;
     if (searchType === SEARCH_TYPES.USER) urls = response.users.map(formatUserResult);
     else if (searchType === SEARCH_TYPES.PLACE) urls = response.places.map(formatPlaceResult);
