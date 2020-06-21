@@ -244,8 +244,8 @@ async function main() {
             maxOpenPagesPerInstance: 1,
             retireInstanceAfterRequestCount: 30,
         },
+        proxyConfiguration,
         launchPuppeteerOptions: {
-            ...proxy,
             stealth: true,
             useChrome: Apify.isAtHome(),
             ignoreHTTPSErrors: true,
