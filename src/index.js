@@ -26,8 +26,9 @@ async function main() {
     } = input;
 
     const extendOutputFunction = parseExtendOutputFunction(input.extendOutputFunction);
-
-    if (proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
+    const proxyConfiguration = await Apify.createProxyConfiguration({
+        ...proxy,
+    });
 
     await initQueryIds();
 
@@ -38,7 +39,7 @@ async function main() {
     setInterval(persistState, 5000);
     Apify.events.on('persistState', persistState);
 
-    let maxConcurrency = 1000;
+    let maxConcurrency = 100;
 
     const usingLogin = loginCookies && Array.isArray(loginCookies);
     let proxySession;
@@ -64,16 +65,19 @@ async function main() {
         process.exit(1);
     }
 
-    if (proxy && proxy.useApifyProxy && (!proxy.apifyProxyGroups || !proxy.apifyProxyGroups.includes('RESIDENTIAL'))) {
-        Apify.utils.log.warning('You are using Apify proxy but not residential group! It is very likely it will not work properly. Please contact support@apify.com for access to residential proxy.')
+    if (!proxyConfiguration.groups.length || !proxyConfiguration.groups.includes('RESIDENTIAL')) {
+        Apify.utils.log.warning('You are using Apify proxy but not residential group! It is very likely it will not work properly. Please contact support@apify.com for access to residential proxy.');
     }
 
+    /**
+     * @type {string[]}
+     */
     let urls;
     if (Array.isArray(directUrls) && directUrls.length > 0) {
         Apify.utils.log.warning('Search is disabled when Direct URLs are used');
         urls = directUrls
     } else {
-        urls = await searchUrls(input, proxy ? Apify.getApifyProxyUrl({ groups: proxy.apifyProxyGroups, session: proxySession }) : undefined);
+        urls = await searchUrls(input, proxyConfiguration);
     }
 
     const requestListSources = urls.map((url) => ({
@@ -100,10 +104,7 @@ async function main() {
         await page.setBypassCSP(true);
         if (cookies && Array.isArray(cookies)) {
             await page.setCookie(...cookies);
-        } else if (input.loginUsername && input.loginPassword) {
-            await login(input.loginUsername, input.loginPassword, page)
-            cookies = await page.cookies();
-        };
+        }
 
         // TODO: Refactor to use https://sdk.apify.com/docs/api/puppeteer#puppeteerblockrequestspage-options
         // Keep in mind it requires more manual setup than page.setRequestInterception
@@ -250,7 +251,7 @@ async function main() {
             ignoreHTTPSErrors: true,
             args: ['--enable-features=NetworkService', '--ignore-certificate-errors'],
         },
-        maxConcurrency: 100,
+        maxConcurrency,
         handlePageTimeoutSecs: 300 * 60, // Ex: 5 hours to crawl thousands of comments
         handlePageFunction,
 
