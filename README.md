@@ -19,7 +19,7 @@ The Instagram data scraper supports the following features:
 
 - Scrape hashtags - query hastags matched by search keyword you can either scrape posts or scrape metadata from each hashtag
 
-- Scrape places/locations - query places matched by search keyword you can either scrape posts or scrape metadata from each place (scrolling for more posts in places/locations in only possible when logged in)
+- Scrape places/locations - query places matched by search keyword you can either scrape posts or scrape metadata from each place (requires a login)
 
 - Scrape comments - you can scrape comments from any post
 
@@ -89,7 +89,7 @@ This solution requires the use of **Proxy servers**, either your own proxy serve
 ```
 
 ## Using cookies to log in
-This solution allows you to log in using already initialized cookies of logged in user.
+This solution allows you to log in using already initialized cookies of logged in user. This is needed for places/locations pages and to get some extra data and access private profiles.
 If you use this option, the solution will do as much as possible to prevent the account from being banned (slow down to just one page open at a time and introduce delays between actions).
 
 **It's highly recommended not to use your own account (unless you have to) and instead create a new instagram account to use with this solution.**
