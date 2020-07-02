@@ -36,6 +36,7 @@ In the future, this solution will be extended with following features:
 
 ## Bugs, fixes, updates and changelog
 This scraper is under active development. Check [CHANGELOG.md](https://github.com/gippy/instagram-scraper/blob/master/CHANGELOG.md) for more detailed information
+- 2020-07-02 - Scraping places/locations now requires login.
 - 2020-06-12 - Big update with many fixes and new features
 
 ## Instagram blocking and proxies
