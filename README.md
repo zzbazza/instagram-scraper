@@ -35,9 +35,7 @@ In the future, this solution will be extended with following features:
 - Scraping and download of Instagram photos
 
 ## Bugs, fixes, updates and changelog
-This scraper is under active development. We hope to clear most issues in upcoming month plus implement new features as we go.
-
-Check [CHANGELOG.md](https://github.com/gippy/instagram-scraper/blob/master/CHANGELOG.md) for more detailed information
+This scraper is under active development. Check [CHANGELOG.md](https://github.com/gippy/instagram-scraper/blob/master/CHANGELOG.md) for more detailed information
 - 2020-06-12 - Big update with many fixes and new features
 
 ## Instagram blocking and proxies
