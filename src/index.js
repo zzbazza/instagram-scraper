@@ -128,10 +128,10 @@ async function main() {
                 || ABORT_RESOURCE_URL_INCLUDES.some((urlMatch) => req.url().includes(urlMatch))
                 || (isJSBundle && abortJSBundle)
             ) {
-                Apify.utils.log.debug(`Aborting url: ${req.url()}`);
+                // Apify.utils.log.debug(`Aborting url: ${req.url()}`);
                 return req.abort();
             }
-            Apify.utils.log.debug(`Processing url: ${req.url()}`);
+            // Apify.utils.log.debug(`Processing url: ${req.url()}`);
             req.continue();
         });
 
