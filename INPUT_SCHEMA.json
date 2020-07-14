@@ -17,7 +17,7 @@
             "description": "What type of pages to search (you can search hashtags, profiles and places)",
             "editor": "select",
             "enum": ["user", "hashtag", "place"],
-            "enumTitles": ["Search users", "Search hashtags", "Search places"],
+            "enumTitles": ["Search users", "Search hashtags", "Search places (only with login)"],
             "default": "hashtag"
         },
         "searchLimit": {
@@ -32,7 +32,7 @@
         "directUrls": {
             "title": "Direct Instagram page URLs",
             "type": "array",
-            "description": "If you already have URL(s) of page(s) you wish to scrape, you can set them here. <br /><br /><strong>This field is optional, but this field or 'Search' must be provided</strong>",
+            "description": "If you already have URL(s) of page(s) you wish to scrape, you can set them here. <br /><br /><strong>This field is optional, but this field or 'Search' must be provided</strong>. Location URLs require login.",
             "editor": "stringList",
             "placeholderValue": "URL",
             "patternValue": "https:\\/\\/www\\.instagram\\.com\\/.+",
