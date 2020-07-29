@@ -166,10 +166,13 @@ async function main() {
         if (usingLogin) {
             try {
                 const viewerId = await page.evaluate(() => window._sharedData.config.viewerId);
-                if (!viewerId) throw new Error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
+                if (!viewerId) {
+                    Apify.utils.log.error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
+                    process.exit(1);
+                }
             } catch (loginError) {
-                Apify.utils.log.error(loginError.message);
-                process.exit(1);
+                Apify.utils.log.error(loginError);
+                throw new Error(`Page didn't load properly with login, retrying...`);
             }
         }
         return response;
