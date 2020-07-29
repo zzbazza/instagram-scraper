@@ -1,5 +1,3 @@
-### 2020-07-02 - Scraping places/locations now requires login.
-
 ### 2020-06-11 Big update with many fixes and new features
 
 #### Bug fixes
