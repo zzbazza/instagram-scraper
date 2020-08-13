@@ -98,8 +98,8 @@
             "editor": "number",
             "unit": "likes",
             "default": 0,
-            "sectionCaption": "Additional data loaded from detail pages",
-            "sectionDescription": "If limits in this section are set above 0, then when the solution enters a page, it attempts to load the specified items until the limit is reached. All of the options below require login credentials."
+            "sectionCaption": "Followers, following, likes",
+            "sectionDescription": "Features that require login. If limits in this section are set above 0, then when the solution enters a page, it attempts to load the specified items until the limit is reached. "
         },
         "followingLimit": {
             "title": "Get profile following",
