@@ -43,12 +43,13 @@
             "type": "string",
             "description": "What to scrape from each Instagram page URL or search result.  You need to provide correct parent pages, e.g. comments can be scraped only from posts, not from profiles.",
             "editor": "select",
-            "enum": ["posts", "comments", "details", "stories"],
+            "enum": ["posts", "comments", "details", "stories", "cookies"],
             "enumTitles": [
                 "Posts (from profile pages, hashtag or place search)",
                 "Comments (from post pages)",
                 "Details (of profiles, posts or search pages - from a profile, post or search pages)",
-                "Stories"],
+                "Stories",
+                "Cookies (will export cookies gained by login using IG credentials - loginUsername, loginPassword, these cookies can be used in later runs for authorization)"],
             "default": "posts"
         },
         "resultsLimit": {
@@ -91,6 +92,18 @@
             "editor": "json",
             "sectionCaption": "Login using cookies",
             "sectionDescription": "Instagram limits access to certain data (likes, post user data, followers and others) if a user is anonymous. You can provide your cookies here (copied from chrome plugin like 'EditThisCookie' to use a normal account. Do not use your own cookies here and rather create a new temporary account. When cookies are used, the run is limited to concurrency 1 and one session, so that the account does not get banned too soon."
+        },
+        "loginUsername": {
+            "title": "Login Username",
+            "type": "string",
+            "description": "Login for IG account. You will have to fill in code, that you receive to email connected to IG account.",
+            "editor": "textfield"
+        },
+        "loginPassword": {
+            "title": "Login Password",
+            "type": "string",
+            "description": "Password for IG account. You will have to fill in code, that you receive to email connected to IG account.",
+            "editor": "textfield"
         },
         "likedByLimit": {
             "title": "Get post likes",

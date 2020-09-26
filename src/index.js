@@ -11,6 +11,7 @@ const { getItemSpec, parseExtendOutputFunction, getPageTypeFromUrl } = require('
 const { GRAPHQL_ENDPOINT, ABORT_RESOURCE_TYPES, ABORT_RESOURCE_URL_INCLUDES, ABORT_RESOURCE_URL_DOWNLOAD_JS, SCRAPE_TYPES, PAGE_TYPES } = require('./consts');
 const { initQueryIds } = require('./query_ids');
 const errors = require('./errors');
+const { login } = require('./login');
 
 async function main() {
     const input = await Apify.getInput();
@@ -57,6 +58,7 @@ async function main() {
         if (!proxy) throw errors.proxyIsRequired();
         if (!resultsType) throw errors.typeIsRequired();
         if (!Object.values(SCRAPE_TYPES).includes(resultsType)) throw errors.unsupportedType(resultsType);
+        if (SCRAPE_TYPES.COOKIES === resultsType && (!input.loginUsername || !input.loginPassword) ) throw errors.credentialsRequired();
     } catch (error) {
         Apify.utils.log.info('--  --  --  --  --');
         Apify.utils.log.info(' ');
@@ -109,6 +111,10 @@ async function main() {
         } else if (input.loginUsername && input.loginPassword) {
             await login(input.loginUsername, input.loginPassword, page)
             cookies = await page.cookies();
+            if (SCRAPE_TYPES.COOKIES === resultsType) {
+                await Apify.pushData(cookies);
+                return;
+            }
         }
 
         // TODO: Refactor to use https://sdk.apify.com/docs/api/puppeteer#puppeteerblockrequestspage-options
@@ -196,6 +202,8 @@ async function main() {
     };
 
     const handlePageFunction = async ({ page, puppeteerPool, request, response }) => {
+        if (SCRAPE_TYPES.COOKIES === resultsType) return;
+
         if (response.status() === 404) {
             Apify.utils.log.error(`Page "${request.url}" does not exist.`);
             return;

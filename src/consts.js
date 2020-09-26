@@ -21,6 +21,7 @@ module.exports = {
         COMMENTS: 'comments',
         DETAILS: 'details',
         STORIES: 'stories',
+        COOKIES: 'cookies',
     },
     // Types of search queries available in instagram search
     SEARCH_TYPES: {
