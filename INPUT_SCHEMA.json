@@ -16,8 +16,8 @@
             "type": "string",
             "description": "What type of pages to search (you can search hashtags, profiles and places)",
             "editor": "select",
-            "enum": ["user", "hashtag", "place"],
-            "enumTitles": ["Search users", "Search hashtags", "Search places (scrolls only with login)"],
+            "enum": ["user", "hashtag", "place", "stories"],
+            "enumTitles": ["Search users", "Search hashtags", "Search places (scrolls only with login)", "Stories (Only with login)"],
             "default": "hashtag"
         },
         "searchLimit": {
@@ -43,11 +43,12 @@
             "type": "string",
             "description": "What to scrape from each Instagram page URL or search result.  You need to provide correct parent pages, e.g. comments can be scraped only from posts, not from profiles.",
             "editor": "select",
-            "enum": ["posts", "comments", "details"],
+            "enum": ["posts", "comments", "details", "stories"],
             "enumTitles": [
                 "Posts (from profile pages, hashtag or place search)",
                 "Comments (from post pages)",
-                "Details (of profiles, posts or search pages - from a profile, post or search pages)"],
+                "Details (of profiles, posts or search pages - from a profile, post or search pages)",
+                "Stories"],
             "default": "posts"
         },
         "resultsLimit": {

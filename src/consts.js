@@ -13,12 +13,14 @@ module.exports = {
         PROFILE: 'user',
         HASHTAG: 'hashtag',
         POST: 'post',
+        STORY: 'story',
     },
     // Types of scrapes this actor can do
     SCRAPE_TYPES: {
         POSTS: 'posts',
         COMMENTS: 'comments',
         DETAILS: 'details',
+        STORIES: 'stories',
     },
     // Types of search queries available in instagram search
     SEARCH_TYPES: {
@@ -31,6 +33,7 @@ module.exports = {
         PROFILE: /https:\/\/www\.instagram\.com\/[^/]{2,}\/?$/,
         HASHTAG: /https:\/\/www\.instagram\.com\/explore\/tags\/.+/,
         POST: /https:\/\/www\.instagram.com\/p\/.+/,
+        STORY: /https:\/\/www\.instagram\.com\/stories\/.+/,
     },
     // Instagrams GraphQL Endpoint URL
     GRAPHQL_ENDPOINT: 'https://www.instagram.com/graphql/query/?query_hash=',

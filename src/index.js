@@ -3,8 +3,9 @@ const _ = require('underscore');
 
 const crypto = require('crypto');
 const { scrapePosts, handlePostsGraphQLResponse, scrapePost } = require('./posts');
-const { scrapeComments, handleCommentsGraphQLResponse }  = require('./comments');
-const { scrapeDetails }  = require('./details');
+const { scrapeComments, handleCommentsGraphQLResponse } = require('./comments');
+const { handleStoriesGraphQLResponse } = require('./stories');
+const { scrapeDetails } = require('./details');
 const { searchUrls } = require('./search');
 const { getItemSpec, parseExtendOutputFunction, getPageTypeFromUrl } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORT_RESOURCE_TYPES, ABORT_RESOURCE_URL_INCLUDES, ABORT_RESOURCE_URL_DOWNLOAD_JS, SCRAPE_TYPES, PAGE_TYPES } = require('./consts');
@@ -34,7 +35,9 @@ async function main() {
     // We have to keep a state of posts/comments we already scraped so we don't push duplicates
     // TODO: Cleanup individual users/posts after all posts/comments are pushed
     const scrollingState = (await Apify.getValue('STATE-SCROLLING')) || {};
-    const persistState = async () => { await Apify.setValue('STATE-SCROLLING', scrollingState)}
+    const persistState = async () => {
+        await Apify.setValue('STATE-SCROLLING', scrollingState)
+    }
     setInterval(persistState, 5000);
     Apify.events.on('persistState', persistState);
 
@@ -46,7 +49,7 @@ async function main() {
     if (usingLogin) {
         Apify.utils.log.warning('Cookies were used, setting maxConcurrency to 1 and using one proxy session!');
         maxConcurrency = 1;
-        const session = crypto.createHash('sha256').update(JSON.stringify(loginCookies)).digest('hex').substring(0,16)
+        const session = crypto.createHash('sha256').update(JSON.stringify(loginCookies)).digest('hex').substring(0, 16)
         if (proxy.useApifyProxy) proxySession = proxy.apifyProxySession = `insta_session_${session}`;
     }
 
@@ -73,7 +76,10 @@ async function main() {
         Apify.utils.log.warning('Search is disabled when Direct URLs are used');
         urls = directUrls
     } else {
-        urls = await searchUrls(input, proxy ? Apify.getApifyProxyUrl({ groups: proxy.apifyProxyGroups, session: proxySession }) : undefined);
+        urls = await searchUrls(input, proxy ? Apify.getApifyProxyUrl({
+            groups: proxy.apifyProxyGroups,
+            session: proxySession
+        }) : undefined);
     }
 
     const requestListSources = urls.map((url) => ({
@@ -103,7 +109,7 @@ async function main() {
         } else if (input.loginUsername && input.loginPassword) {
             await login(input.loginUsername, input.loginPassword, page)
             cookies = await page.cookies();
-        };
+        }
 
         // TODO: Refactor to use https://sdk.apify.com/docs/api/puppeteer#puppeteerblockrequestspage-options
         // Keep in mind it requires more manual setup than page.setRequestInterception
@@ -118,15 +124,17 @@ async function main() {
         page.on('request', (req) => {
             // We need to load some JS when we want to scroll
             // Hashtag & place pages seems to require even more JS allowed but this needs more research
+            // Stories needs JS files
             const isJSBundle = req.url().includes('instagram.com/static/bundles/');
             const abortJSBundle = isScrollPage
-                ? (!ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => req.url().includes(urlMatch)) && ![PAGE_TYPES.HASHTAG, PAGE_TYPES.PLACE].includes(pageType))
+                ? (!ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => req.url().includes(urlMatch)) &&
+                    ![PAGE_TYPES.HASHTAG, PAGE_TYPES.PLACE].includes(pageType))
                 : true
 
             if (
                 ABORT_RESOURCE_TYPES.includes(req.resourceType())
                 || ABORT_RESOURCE_URL_INCLUDES.some((urlMatch) => req.url().includes(urlMatch))
-                || (isJSBundle && abortJSBundle)
+                || (isJSBundle && abortJSBundle && pageType !== PAGE_TYPES.STORY)
             ) {
                 // Apify.utils.log.debug(`Aborting url: ${req.url()}`);
                 return req.abort();
@@ -145,16 +153,25 @@ async function main() {
             // Wait for the page to parse it's data
             while (!page.itemSpec) await page.waitFor(100);
 
-            // console.log('caught response')
-
             try {
                 switch (resultsType) {
-                    case SCRAPE_TYPES.POSTS: return handlePostsGraphQLResponse({ page, response, scrollingState })
-                    case SCRAPE_TYPES.COMMENTS: return handleCommentsGraphQLResponse({ page, response, scrollingState })
+                    case SCRAPE_TYPES.POSTS:
+                        return handlePostsGraphQLResponse({ page, response, scrollingState })
+                    case SCRAPE_TYPES.COMMENTS:
+                        return handleCommentsGraphQLResponse({ page, response, scrollingState })
+                    case SCRAPE_TYPES.STORIES:
+                        return handleStoriesGraphQLResponse({ page, response })
                 }
             } catch (e) {
                 Apify.utils.log.error(`Error happened while processing response: ${e.message}`);
                 console.log(e.stack);
+            }
+        });
+
+        page.on('requestfailed', request => {
+            // Story data are not loaded if js fails
+            if (ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => request.url().includes(urlMatch) && resultsType === SCRAPE_TYPES.STORIES)) {
+                throw new Error(`JS needed for stories does not loaded properly, retrying...`);
             }
         });
 
@@ -222,13 +239,21 @@ async function main() {
             _.extend(result, userResult);
 
             await Apify.pushData(result);
+        } else if (resultsType === SCRAPE_TYPES.STORIES) {
+            page.itemSpec = itemSpec;
+            // Wait for Data scraped from graphQL
+            await Apify.utils.sleep(3000);
         } else {
             page.itemSpec = itemSpec;
             switch (resultsType) {
-                case SCRAPE_TYPES.POSTS: return scrapePosts({ page, request, itemSpec, entryData, input, scrollingState, puppeteerPool });
-                case SCRAPE_TYPES.COMMENTS: return scrapeComments({ page, itemSpec, entryData, scrollingState, puppeteerPool });
-                case SCRAPE_TYPES.DETAILS: return scrapeDetails({ input, request, itemSpec, entryData, page, proxy, userResult });
-                default: throw new Error('Not supported');
+                case SCRAPE_TYPES.POSTS:
+                    return scrapePosts({ page, request, itemSpec, entryData, input, scrollingState, puppeteerPool });
+                case SCRAPE_TYPES.COMMENTS:
+                    return scrapeComments({ page, itemSpec, entryData, scrollingState, puppeteerPool });
+                case SCRAPE_TYPES.DETAILS:
+                    return scrapeDetails({ input, request, itemSpec, entryData, page, proxy, userResult });
+                default:
+                    throw new Error('Not supported');
             }
         }
     };
