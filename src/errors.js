@@ -12,4 +12,5 @@ module.exports = {
     unsupportedSearchType: type => new Error(`Type "${type}" is not supported. Allowed types are "${Object.values(SEARCH_TYPES).join('", "')}"`),
     notPostPage: () => new Error('Comments can only be loaded from posts detail page.'),
     credentialsRequired: () => new Error('You need to provide login credentials.'),
+    cookiesNotArray: () => new Error('Login cookies has to be either Array of cookies or Array of Arrays of cookies.'),
 };

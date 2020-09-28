@@ -1,7 +1,6 @@
 const Apify = require('apify');
 const _ = require('underscore');
 
-const crypto = require('crypto');
 const { scrapePosts, handlePostsGraphQLResponse, scrapePost } = require('./posts');
 const { scrapeComments, handleCommentsGraphQLResponse } = require('./comments');
 const { handleStoriesGraphQLResponse } = require('./stories');
@@ -12,6 +11,7 @@ const { GRAPHQL_ENDPOINT, ABORT_RESOURCE_TYPES, ABORT_RESOURCE_URL_INCLUDES, ABO
 const { initQueryIds } = require('./query_ids');
 const errors = require('./errors');
 const { login } = require('./login');
+const { processCookiesInput, randomCookie, cookiesCount, removeCookie } = require('./cookies');
 
 async function main() {
     const input = await Apify.getInput();
@@ -25,6 +25,8 @@ async function main() {
         maxRequestRetries,
         loginCookies,
         directUrls = [],
+        loginUsername,
+        loginPassword,
     } = input;
 
     const extendOutputFunction = parseExtendOutputFunction(input.extendOutputFunction);
@@ -44,21 +46,25 @@ async function main() {
 
     let maxConcurrency = 1000;
 
-    const usingLogin = loginCookies && Array.isArray(loginCookies);
+    const { usingLogin, cookiesStore } = processCookiesInput(loginCookies);
     let proxySession;
-
+    let selectedCookies, cookieKey;
     if (usingLogin) {
         Apify.utils.log.warning('Cookies were used, setting maxConcurrency to 1 and using one proxy session!');
         maxConcurrency = 1;
-        const session = crypto.createHash('sha256').update(JSON.stringify(loginCookies)).digest('hex').substring(0, 16)
-        if (proxy.useApifyProxy) proxySession = proxy.apifyProxySession = `insta_session_${session}`;
+        const { session, cookies, cookieKey: key } = randomCookie(cookiesStore);
+        selectedCookies = cookies;
+        cookieKey = key;
+        // TODO Error: net::ERR_TUNNEL_CONNECTION_FAILED ??
+        // if (proxy.useApifyProxy) proxySession = proxy.apifyProxySession = `insta_session_${session}`;
+        if (proxy.useApifyProxy) proxySession = `insta_session_${session}`;
     }
 
     try {
         if (!proxy) throw errors.proxyIsRequired();
         if (!resultsType) throw errors.typeIsRequired();
         if (!Object.values(SCRAPE_TYPES).includes(resultsType)) throw errors.unsupportedType(resultsType);
-        if (SCRAPE_TYPES.COOKIES === resultsType && (!input.loginUsername || !input.loginPassword) ) throw errors.credentialsRequired();
+        if (SCRAPE_TYPES.COOKIES === resultsType && (!loginUsername || !loginPassword)) throw errors.credentialsRequired();
     } catch (error) {
         Apify.utils.log.info('--  --  --  --  --');
         Apify.utils.log.info(' ');
@@ -102,15 +108,11 @@ async function main() {
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
 
-    let cookies = loginCookies;
-
-    const gotoFunction = async ({ request, page }) => {
+    const gotoFunction = async ({ request, page, puppeteerPool }) => {
         await page.setBypassCSP(true);
-        if (cookies && Array.isArray(cookies)) {
-            await page.setCookie(...cookies);
-        } else if (input.loginUsername && input.loginPassword) {
-            await login(input.loginUsername, input.loginPassword, page)
-            cookies = await page.cookies();
+        if (!selectedCookies && loginUsername && loginPassword) {
+            await login(loginUsername, loginPassword, page)
+            const cookies = await page.cookies();
             if (SCRAPE_TYPES.COOKIES === resultsType) {
                 await Apify.pushData(cookies);
                 return;
@@ -190,8 +192,13 @@ async function main() {
             try {
                 const viewerId = await page.evaluate(() => window._sharedData.config.viewerId);
                 if (!viewerId) {
+                    // choose other cookie from store or exit if no other available
                     Apify.utils.log.error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
-                    process.exit(1);
+                    removeCookie(cookiesStore, cookieKey)
+                    if (cookiesCount(cookiesStore) > 1)
+                        await puppeteerPool.destroy();
+                    else
+                        process.exit(1);
                 }
             } catch (loginError) {
                 Apify.utils.log.error(loginError);
@@ -268,6 +275,27 @@ async function main() {
 
     if (proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
 
+    const launchPuppeteerFunction = async (options) => {
+        // TODO mark cookie as used so we can use parallel sessions
+        const { session, cookies, cookieKey: key } = randomCookie(cookiesStore);
+        selectedCookies = cookies;
+        cookieKey = key;
+        // TODO Error: net::ERR_TUNNEL_CONNECTION_FAILED ??
+        // if (proxy.useApifyProxy) proxy.apifyProxySession = `insta_session_${session}`;
+
+        const browser = await Apify.launchPuppeteer({
+            ...options,
+            ...proxy
+        });
+
+        if (selectedCookies) {
+            const page = await browser.newPage();
+            await page.setCookie(...selectedCookies);
+        }
+
+        return browser;
+    }
+
     const requestQueue = await Apify.openRequestQueue();
 
     const crawler = new Apify.PuppeteerCrawler({
@@ -280,13 +308,13 @@ async function main() {
             retireInstanceAfterRequestCount: 30,
         },
         launchPuppeteerOptions: {
-            ...proxy,
             stealth: true,
             useChrome: Apify.isAtHome(),
             ignoreHTTPSErrors: true,
             args: ['--enable-features=NetworkService', '--ignore-certificate-errors'],
         },
-        maxConcurrency: 100,
+        launchPuppeteerFunction,
+        maxConcurrency,
         handlePageTimeoutSecs: 300 * 60, // Ex: 5 hours to crawl thousands of comments
         handlePageFunction,
 
