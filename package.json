@@ -10,7 +10,6 @@
 		"@types/underscore": "^1.10.0",
 		"apify": "^0.20.2",
 		"got": "^9.6.0",
-		"http": "0.0.1-security",
 		"request-promise-native": "^1.0.8",
 		"safe-eval": "^0.4.1",
 		"tough-cookie": "^3.0.1",
