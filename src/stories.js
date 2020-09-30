@@ -5,7 +5,9 @@ const Apify = require('apify');
  * list of stories.
  * @param {Object} data GraphQL data
  */
-const getStoriesFromGraphQL = ({ data: { reels_media } }) => {
+const getStoriesFromGraphQL = ({ data }) => {
+    if (!data) return;
+    const { reels_media } = data;
     const itemsExists = reels_media && reels_media[0] && reels_media[0] && reels_media[0].items;
 
     const storyItems = itemsExists ? reels_media[0].items : [];
