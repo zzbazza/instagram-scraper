@@ -13,4 +13,5 @@ module.exports = {
     notPostPage: () => new Error('Comments can only be loaded from posts detail page.'),
     credentialsRequired: () => new Error('You need to provide login credentials.'),
     cookiesNotArray: () => new Error('Login cookies has to be either Array of cookies or Array of Arrays of cookies.'),
+    xhrNotLoaded: () => new Error('Required XHR request not loaded.'),
 };

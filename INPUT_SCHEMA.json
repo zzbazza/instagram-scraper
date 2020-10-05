@@ -139,6 +139,12 @@
             "sectionCaption": "Experimental features",
             "sectionDescription": "Features in this section are highly experimental, can result in a ban of the account if logged in and might cause the solution to fail."
         },
+        "includeHasStories": {
+            "title": "Include Has Stories",
+            "type": "boolean",
+            "description": "If this feature is used, then for each user detail property has_public_story from xhr request is parsed.",
+            "editor": "checkbox"
+        },
         "extendOutputFunction": {
             "title": "Extend output function",
             "type": "string",

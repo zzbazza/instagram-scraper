@@ -4,7 +4,7 @@ const _ = require('underscore');
 const { scrapePosts, handlePostsGraphQLResponse, scrapePost } = require('./posts');
 const { scrapeComments, handleCommentsGraphQLResponse } = require('./comments');
 const { handleStoriesGraphQLResponse } = require('./stories');
-const { scrapeDetails } = require('./details');
+const { scrapeDetails, handleDetailsGraphQLResponse } = require('./details');
 const { searchUrls } = require('./search');
 const { getItemSpec, parseExtendOutputFunction, getPageTypeFromUrl } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORT_RESOURCE_TYPES, ABORT_RESOURCE_URL_INCLUDES, ABORT_RESOURCE_URL_DOWNLOAD_JS, SCRAPE_TYPES, PAGE_TYPES } = require('./consts');
@@ -27,6 +27,7 @@ async function main() {
         directUrls = [],
         loginUsername,
         loginPassword,
+        includeHasStories,
     } = input;
 
     const extendOutputFunction = parseExtendOutputFunction(input.extendOutputFunction);
@@ -142,7 +143,7 @@ async function main() {
             if (
                 ABORT_RESOURCE_TYPES.includes(req.resourceType())
                 || ABORT_RESOURCE_URL_INCLUDES.some((urlMatch) => req.url().includes(urlMatch))
-                || (isJSBundle && abortJSBundle && pageType !== PAGE_TYPES.STORY)
+                || (isJSBundle && abortJSBundle && pageType !== PAGE_TYPES.STORY && !includeHasStories)
             ) {
                 // Apify.utils.log.debug(`Aborting url: ${req.url()}`);
                 return req.abort();
@@ -164,11 +165,13 @@ async function main() {
             try {
                 switch (resultsType) {
                     case SCRAPE_TYPES.POSTS:
-                        return handlePostsGraphQLResponse({ page, response, scrollingState })
+                        return handlePostsGraphQLResponse({ page, response, scrollingState });
                     case SCRAPE_TYPES.COMMENTS:
-                        return handleCommentsGraphQLResponse({ page, response, scrollingState })
+                        return handleCommentsGraphQLResponse({ page, response, scrollingState });
                     case SCRAPE_TYPES.STORIES:
-                        return handleStoriesGraphQLResponse({ page, response })
+                        return handleStoriesGraphQLResponse({ page, response });
+                    case SCRAPE_TYPES.DETAILS:
+                        return handleDetailsGraphQLResponse({ page, response });
                 }
             } catch (e) {
                 Apify.utils.log.error(`Error happened while processing response: ${e.message}`);
@@ -266,7 +269,7 @@ async function main() {
                 case SCRAPE_TYPES.COMMENTS:
                     return scrapeComments({ page, itemSpec, entryData, scrollingState, puppeteerPool });
                 case SCRAPE_TYPES.DETAILS:
-                    return scrapeDetails({ input, request, itemSpec, entryData, page, proxy, userResult });
+                    return scrapeDetails({ input, request, itemSpec, entryData, page, proxy, userResult, includeHasStories });
                 default:
                     throw new Error('Not supported');
             }
