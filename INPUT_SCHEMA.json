@@ -93,6 +93,13 @@
             "sectionCaption": "Login using cookies",
             "sectionDescription": "Instagram limits access to certain data (likes, post user data, followers and others) if a user is anonymous. You can provide your cookies here (copied from chrome plugin like 'EditThisCookie' to use a normal account. Do not use your own cookies here and rather create a new temporary account. When cookies are used, the run is limited to concurrency 1 and one session, so that the account does not get banned too soon."
         },
+        "cookiesPerConcurrency": {
+            "title": "Concurrency",
+            "type": "integer",
+            "description": "Set number of cookies that are used per one concurrent browser. (e.g. if set to 3 and set 6 sets of loginCookies, then it will run with concurrency 2 so each browser can choose randomly from three sets of cookies.)",
+            "editor": "number",
+            "default": 0
+        },
         "loginUsername": {
             "title": "Login Username",
             "type": "string",

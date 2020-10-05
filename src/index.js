@@ -11,7 +11,7 @@ const { GRAPHQL_ENDPOINT, ABORT_RESOURCE_TYPES, ABORT_RESOURCE_URL_INCLUDES, ABO
 const { initQueryIds } = require('./query_ids');
 const errors = require('./errors');
 const { login } = require('./login');
-const { processCookiesInput, randomCookie, cookiesCount, removeCookie } = require('./cookies');
+const { LoginCookiesStore } = require('./cookies');
 
 async function main() {
     const input = await Apify.getInput();
@@ -27,7 +27,8 @@ async function main() {
         directUrls = [],
         loginUsername,
         loginPassword,
-        includeHasStories,
+        includeHasStories = false,
+        cookiesPerConcurrency = 1,
     } = input;
 
     const extendOutputFunction = parseExtendOutputFunction(input.extendOutputFunction);
@@ -47,18 +48,10 @@ async function main() {
 
     let maxConcurrency = 1000;
 
-    const { usingLogin, cookiesStore } = processCookiesInput(loginCookies);
-    let proxySession;
-    let selectedCookies, cookieKey;
-    if (usingLogin) {
-        Apify.utils.log.warning('Cookies were used, setting maxConcurrency to 1 and using one proxy session!');
-        maxConcurrency = 1;
-        const { session, cookies, cookieKey: key } = randomCookie(cookiesStore);
-        selectedCookies = cookies;
-        cookieKey = key;
-        // TODO Error: net::ERR_TUNNEL_CONNECTION_FAILED ??
-        // if (proxy.useApifyProxy) proxySession = proxy.apifyProxySession = `insta_session_${session}`;
-        if (proxy.useApifyProxy) proxySession = `insta_session_${session}`;
+    const loginCookiesStore = new LoginCookiesStore(loginCookies, cookiesPerConcurrency);
+    if (loginCookiesStore.usingLogin()) {
+        maxConcurrency = loginCookiesStore.concurrency();
+        Apify.utils.log.warning(`Cookies were used, setting maxConcurrency to ${maxConcurrency}. Count of available cookies: ${loginCookiesStore.cookiesCount()}!`);
     }
 
     try {
@@ -86,8 +79,7 @@ async function main() {
         urls = directUrls
     } else {
         urls = await searchUrls(input, proxy ? Apify.getApifyProxyUrl({
-            groups: proxy.apifyProxyGroups,
-            session: proxySession
+            groups: proxy.apifyProxyGroups
         }) : undefined);
     }
 
@@ -109,9 +101,11 @@ async function main() {
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
 
-    const gotoFunction = async ({ request, page, puppeteerPool }) => {
+    const gotoFunction = async ({ request, page, puppeteerPool, autoscaledPool }) => {
+        loginCookiesStore.setPuppeteerPool(puppeteerPool); // get puppeteerPool instance
+        loginCookiesStore.setAutoscaledPool(autoscaledPool); // get autoscaledPool instance
         await page.setBypassCSP(true);
-        if (!selectedCookies && loginUsername && loginPassword) {
+        if (loginUsername && loginPassword) {
             await login(loginUsername, loginPassword, page)
             const cookies = await page.cookies();
             if (SCRAPE_TYPES.COOKIES === resultsType) {
@@ -182,7 +176,7 @@ async function main() {
         page.on('requestfailed', request => {
             // Story data are not loaded if js fails
             if (ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => request.url().includes(urlMatch) && resultsType === SCRAPE_TYPES.STORIES)) {
-                throw new Error(`JS needed for stories does not loaded properly, retrying...`);
+                page.storiesLoaded = false;
             }
         });
 
@@ -191,17 +185,22 @@ async function main() {
             timeout: pageTimeout * 1000,
         });
 
-        if (usingLogin) {
+        if (loginCookiesStore.usingLogin()) {
             try {
+                const browser = await page.browser();
                 const viewerId = await page.evaluate(() => window._sharedData.config.viewerId);
                 if (!viewerId) {
                     // choose other cookie from store or exit if no other available
-                    Apify.utils.log.error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
-                    removeCookie(cookiesStore, cookieKey)
-                    if (cookiesCount(cookiesStore) > 1)
-                        await puppeteerPool.destroy();
-                    else
+                    loginCookiesStore.markAsBad(browser.process().pid);
+                    if (loginCookiesStore.cookiesCount() > 0) {
+                        puppeteerPool.retire(browser);
+                        throw new Error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
+                    } else {
+                        Apify.utils.log.error('No login cookies available.');
                         process.exit(1);
+                    }
+                } else {
+                    loginCookiesStore.markAsGood(browser.process().pid);
                 }
             } catch (loginError) {
                 Apify.utils.log.error(loginError);
@@ -260,7 +259,12 @@ async function main() {
         } else if (resultsType === SCRAPE_TYPES.STORIES) {
             page.itemSpec = itemSpec;
             // Wait for Data scraped from graphQL
-            await Apify.utils.sleep(3000);
+            let sleepLength = 0;
+            while (typeof page.storiesLoaded === 'undefined' && sleepLength < 10000) {
+                await Apify.utils.sleep(100);
+                sleepLength += 100;
+            }
+            if (!page.storiesLoaded) throw new Error(`JS needed for stories does not loaded properly, retrying...`);
         } else {
             page.itemSpec = itemSpec;
             switch (resultsType) {
@@ -269,7 +273,16 @@ async function main() {
                 case SCRAPE_TYPES.COMMENTS:
                     return scrapeComments({ page, itemSpec, entryData, scrollingState, puppeteerPool });
                 case SCRAPE_TYPES.DETAILS:
-                    return scrapeDetails({ input, request, itemSpec, entryData, page, proxy, userResult, includeHasStories });
+                    return scrapeDetails({
+                        input,
+                        request,
+                        itemSpec,
+                        entryData,
+                        page,
+                        proxy,
+                        userResult,
+                        includeHasStories
+                    });
                 default:
                     throw new Error('Not supported');
             }
@@ -279,21 +292,15 @@ async function main() {
     if (proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
 
     const launchPuppeteerFunction = async (options) => {
-        // TODO mark cookie as used so we can use parallel sessions
-        const { session, cookies, cookieKey: key } = randomCookie(cookiesStore);
-        selectedCookies = cookies;
-        cookieKey = key;
-        // TODO Error: net::ERR_TUNNEL_CONNECTION_FAILED ??
-        // if (proxy.useApifyProxy) proxy.apifyProxySession = `insta_session_${session}`;
-
         const browser = await Apify.launchPuppeteer({
             ...options,
             ...proxy
         });
 
-        if (selectedCookies) {
+        const cookies = loginCookiesStore.randomCookie(browser.process().pid);
+        if (cookies) {
             const page = await browser.newPage();
-            await page.setCookie(...selectedCookies);
+            await page.setCookie(...cookies);
         }
 
         return browser;
@@ -332,6 +339,8 @@ async function main() {
     });
 
     await crawler.run();
+    if (loginCookiesStore.invalidCookies().length > 0)
+        Apify.utils.log.warning(`Invalid cookies: ${loginCookiesStore.invalidCookies().join('; ')}`);
 }
 
 module.exports = main;

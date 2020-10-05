@@ -32,6 +32,7 @@ async function handleStoriesGraphQLResponse({ page, response }) {
 
     Apify.utils.log.info(`Scraped ${timeline.storiesCount} stories`);
     await Apify.pushData(timeline.stories);
+    page.storiesLoaded = true;
 }
 
 module.exports = {
