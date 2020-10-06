@@ -33,7 +33,8 @@ async function main() {
 
     const extendOutputFunction = parseExtendOutputFunction(input.extendOutputFunction);
 
-    if (proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
+    if (proxy && proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
+    if (proxy && proxy.proxyUrls && proxy.proxyUrls.length === 0) delete proxy.proxyUrls;
 
     await initQueryIds();
 
@@ -55,7 +56,7 @@ async function main() {
     }
 
     try {
-        if (!proxy) throw errors.proxyIsRequired();
+        if (Apify.isAtHome() && (!proxy || (!proxy.apifyProxyGroups && !proxy.proxyUrls))) throw errors.proxyIsRequired();
         if (!resultsType) throw errors.typeIsRequired();
         if (!Object.values(SCRAPE_TYPES).includes(resultsType)) throw errors.unsupportedType(resultsType);
         if (SCRAPE_TYPES.COOKIES === resultsType && (!loginUsername || !loginPassword)) throw errors.credentialsRequired();
@@ -73,14 +74,13 @@ async function main() {
         Apify.utils.log.warning('You are using Apify proxy but not residential group! It is very likely it will not work properly. Please contact support@apify.com for access to residential proxy.')
     }
 
+    const proxyConfiguration = await Apify.createProxyConfiguration(proxy);
     let urls;
     if (Array.isArray(directUrls) && directUrls.length > 0) {
         Apify.utils.log.warning('Search is disabled when Direct URLs are used');
         urls = directUrls
     } else {
-        urls = await searchUrls(input, proxy ? Apify.getApifyProxyUrl({
-            groups: proxy.apifyProxyGroups
-        }) : undefined);
+        urls = await searchUrls(input, proxyConfiguration ? proxyConfiguration.newUrl() : undefined);
     }
 
     const requestListSources = urls.map((url) => ({
@@ -289,12 +289,10 @@ async function main() {
         }
     };
 
-    if (proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
-
     const launchPuppeteerFunction = async (options) => {
         const browser = await Apify.launchPuppeteer({
             ...options,
-            ...proxy
+            proxyUrl: proxyConfiguration ? proxyConfiguration.newUrl() : undefined
         });
 
         const cookies = loginCookiesStore.randomCookie(browser.process().pid);
