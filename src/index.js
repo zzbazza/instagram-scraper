@@ -33,7 +33,6 @@ async function main() {
 
     const extendOutputFunction = parseExtendOutputFunction(input.extendOutputFunction);
 
-    if (proxy && proxy.apifyProxyGroups && proxy.apifyProxyGroups.length === 0) delete proxy.apifyProxyGroups;
     if (proxy && proxy.proxyUrls && proxy.proxyUrls.length === 0) delete proxy.proxyUrls;
 
     await initQueryIds();
@@ -56,7 +55,7 @@ async function main() {
     }
 
     try {
-        if (Apify.isAtHome() && (!proxy || (!proxy.apifyProxyGroups && !proxy.proxyUrls))) throw errors.proxyIsRequired();
+        if (Apify.isAtHome() && (!proxy || (!proxy.useApifyProxy && !proxy.proxyUrls))) throw errors.proxyIsRequired();
         if (!resultsType) throw errors.typeIsRequired();
         if (!Object.values(SCRAPE_TYPES).includes(resultsType)) throw errors.unsupportedType(resultsType);
         if (SCRAPE_TYPES.COOKIES === resultsType && (!loginUsername || !loginPassword)) throw errors.credentialsRequired();
