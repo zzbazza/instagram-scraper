@@ -65,6 +65,12 @@ const getItemSpec = (entryData) => {
         };
     }
 
+    if (entryData.StoriesPage) {
+        return {
+            pageType: PAGE_TYPES.STORY,
+        };
+    }
+
     Apify.utils.log.info('unsupported page', entryData);
 
     throw errors.unsupportedPage();
@@ -80,6 +86,7 @@ const getLogLabel = (pageData) => {
         case PAGE_TYPES.PROFILE: return `User "${pageData.userUsername}"`;
         case PAGE_TYPES.HASHTAG: return `Tag "${pageData.tagName}"`;
         case PAGE_TYPES.POST: return `Post "${pageData.id}"`;
+        case PAGE_TYPES.STORY: return `Story`;
         default: throw new Error('Not supported');
     }
 };

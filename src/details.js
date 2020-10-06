@@ -6,6 +6,7 @@ const { PAGE_TYPES } = require('./consts');
 const { getPostLikes } = require('./likes');
 const { getProfileFollowedBy } = require('./followed_by');
 const { getProfileFollowing } = require('./following');
+const { xhrNotLoaded } = require('./errors');
 
 // Formats IGTV Video Post edge item into nicely formated output item
 const formatIGTVVideo = (edge) => {
@@ -123,6 +124,7 @@ const formatProfileOutput = async (input, request, data, page, itemSpec) => {
         latestPosts: data.edge_owner_to_timeline_media ? data.edge_owner_to_timeline_media.edges.map((edge) => edge.node).map(formatSinglePost) : [],
         following,
         followedBy,
+        has_public_story: data.has_public_story,
     };
 };
 
@@ -181,23 +183,48 @@ const formatPostOutput = async (input, request, data, page, itemSpec) => {
 // Finds correct variable in window._shared_data.entry_data based on pageType
 const getOutputFromEntryData = async ({ input, itemSpec, request, entryData, page, proxy, userResult }) => {
     switch (itemSpec.pageType) {
-        case PAGE_TYPES.PLACE: return formatPlaceOutput(request, entryData.LocationsPage[0].graphql.location, page, itemSpec, userResult);
-        case PAGE_TYPES.PROFILE: return formatProfileOutput(input, request, entryData.ProfilePage[0].graphql.user, page, itemSpec, userResult);
-        case PAGE_TYPES.HASHTAG: return formatHashtagOutput(request, entryData.TagPage[0].graphql.hashtag, page, itemSpec, userResult);
-        case PAGE_TYPES.POST: return await formatPostOutput(input, request, entryData.PostPage[0].graphql.shortcode_media, page, itemSpec, userResult);
-        default: throw new Error('Not supported');
+        case PAGE_TYPES.PLACE:
+            return formatPlaceOutput(request, entryData.LocationsPage[0].graphql.location, page, itemSpec, userResult);
+        case PAGE_TYPES.PROFILE:
+            return formatProfileOutput(input, request, entryData.ProfilePage[0].graphql.user, page, itemSpec, userResult);
+        case PAGE_TYPES.HASHTAG:
+            return formatHashtagOutput(request, entryData.TagPage[0].graphql.hashtag, page, itemSpec, userResult);
+        case PAGE_TYPES.POST:
+            return await formatPostOutput(input, request, entryData.PostPage[0].graphql.shortcode_media, page, itemSpec, userResult);
+        default:
+            throw new Error('Not supported');
     }
 };
 
 // Takes correct variable from window object and formats it into proper output
-const scrapeDetails = async ({ input, request, itemSpec, entryData, page, proxy, userResult }) => {
+const scrapeDetails = async ({ input, request, itemSpec, entryData, page, proxy, userResult, includeHasStories }) => {
+    let sleepLength = 0;
+    while (includeHasStories && typeof page.hasPublicStory === 'undefined' && sleepLength < 5000) {
+        // Apify.utils.log.debug(`Sleeping for ${sleepLength}`)
+        await Apify.utils.sleep(100);
+        sleepLength += 100;
+    }
+    // throw error when XHR request not loaded correctly
+    if (includeHasStories && typeof page.hasPublicStory === 'undefined') throw xhrNotLoaded();
+
     const output = await getOutputFromEntryData({ input, itemSpec, request, entryData, page, proxy, userResult });
     _.extend(output, userResult);
+    if (includeHasStories)
+        output.hasPublicStory = page.hasPublicStory;
     await Apify.pushData(output);
     log(itemSpec, 'Page details saved, task finished');
+};
+
+// Parse xhr request for detail page
+const handleDetailsGraphQLResponse = async ({ page, response }) => {
+    const data = await response.json();
+    if (data.data && data.data.user) {
+        page.hasPublicStory = data.data.user.has_public_story;
+    }
 };
 
 module.exports = {
     scrapeDetails,
     formatSinglePost,
+    handleDetailsGraphQLResponse,
 };

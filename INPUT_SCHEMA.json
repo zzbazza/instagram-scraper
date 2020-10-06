@@ -16,8 +16,8 @@
             "type": "string",
             "description": "What type of pages to search (you can search hashtags, profiles and places)",
             "editor": "select",
-            "enum": ["user", "hashtag", "place"],
-            "enumTitles": ["Search users", "Search hashtags", "Search places (scrolls only with login)"],
+            "enum": ["user", "hashtag", "place", "stories"],
+            "enumTitles": ["Search users", "Search hashtags", "Search places (scrolls only with login)", "Stories (Only with login)"],
             "default": "hashtag"
         },
         "searchLimit": {
@@ -43,11 +43,13 @@
             "type": "string",
             "description": "What to scrape from each Instagram page URL or search result.  You need to provide correct parent pages, e.g. comments can be scraped only from posts, not from profiles.",
             "editor": "select",
-            "enum": ["posts", "comments", "details"],
+            "enum": ["posts", "comments", "details", "stories", "cookies"],
             "enumTitles": [
                 "Posts (from profile pages, hashtag or place search)",
                 "Comments (from post pages)",
-                "Details (of profiles, posts or search pages - from a profile, post or search pages)"],
+                "Details (of profiles, posts or search pages - from a profile, post or search pages)",
+                "Stories",
+                "Cookies (will export cookies gained by login using IG credentials - loginUsername, loginPassword, these cookies can be used in later runs for authorization)"],
             "default": "posts"
         },
         "resultsLimit": {
@@ -91,6 +93,25 @@
             "sectionCaption": "Login using cookies",
             "sectionDescription": "Instagram limits access to certain data (likes, post user data, followers and others) if a user is anonymous. You can provide your cookies here (copied from chrome plugin like 'EditThisCookie' to use a normal account. Do not use your own cookies here and rather create a new temporary account. When cookies are used, the run is limited to concurrency 1 and one session, so that the account does not get banned too soon."
         },
+        "cookiesPerConcurrency": {
+            "title": "Concurrency",
+            "type": "integer",
+            "description": "Set number of cookies that are used per one concurrent browser. (e.g. if set to 3 and set 6 sets of loginCookies, then it will run with concurrency 2 so each browser can choose randomly from three sets of cookies.)",
+            "editor": "number",
+            "default": 0
+        },
+        "loginUsername": {
+            "title": "Login Username",
+            "type": "string",
+            "description": "Login for IG account. You will have to fill in code, that you receive to email connected to IG account.",
+            "editor": "textfield"
+        },
+        "loginPassword": {
+            "title": "Login Password",
+            "type": "string",
+            "description": "Password for IG account. You will have to fill in code, that you receive to email connected to IG account.",
+            "editor": "textfield"
+        },
         "likedByLimit": {
             "title": "Get post likes",
             "type": "integer",
@@ -124,6 +145,12 @@
             "editor": "checkbox",
             "sectionCaption": "Experimental features",
             "sectionDescription": "Features in this section are highly experimental, can result in a ban of the account if logged in and might cause the solution to fail."
+        },
+        "includeHasStories": {
+            "title": "Include Has Stories",
+            "type": "boolean",
+            "description": "If this feature is used, then for each user detail property has_public_story from xhr request is parsed.",
+            "editor": "checkbox"
         },
         "extendOutputFunction": {
             "title": "Extend output function",
