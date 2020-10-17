@@ -3,6 +3,8 @@ const { getCheckedVariable, log, filterPushedItemsAndUpdateState, finiteScroll }
 const { PAGE_TYPES, GRAPHQL_ENDPOINT, LOG_TYPES } = require('./consts');
 const errors = require('./errors');
 
+const { sleep } = Apify.utils;
+
 const initData = {};
 
 /**
@@ -59,14 +61,14 @@ const scrapeComments = async ({ page, itemSpec, entryData, scrollingState, puppe
         await Apify.pushData(commentsReadyToPush);
     } else {
         log(itemSpec, 'Waiting for initial data to load');
-        while (!initData[itemSpec.id]) await page.waitFor(100);
+        while (!initData[itemSpec.id]) await sleep(100);
     }
 
-    await page.waitFor(500);
+    await sleep(500);
 
     const willContinueScroll = initData[itemSpec.id].hasNextPage && Object.keys(scrollingState[itemSpec.id].ids).length < itemSpec.limit;
     if (willContinueScroll) {
-        // await page.waitFor(1000);
+        // await sleep(1000);
         await finiteScroll({
             itemSpec,
             page,

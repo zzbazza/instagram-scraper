@@ -3,6 +3,8 @@ const { getCheckedVariable, log, finiteScroll, filterPushedItemsAndUpdateState, 
 const { PAGE_TYPES, LOG_TYPES } = require('./consts');
 const { formatSinglePost } = require('./details');
 
+const { sleep } = Apify.utils;
+
 const initData = {};
 
 /**
@@ -95,8 +97,8 @@ const scrapePosts = async ({ page, itemSpec, entryData, scrollingState, puppetee
         const profilePageSel = '.ySN3v';
         const el = await page.$(`${profilePageSel}`);
         if (!el) {
-            log(itemSpec, `Profile page didn't load properly, trying again...`, LOG_TYPES.ERROR);
-            throw new Error(`Profile page didn't load properly, trying again...`);
+            log(itemSpec, 'Profile page didn\'t load properly, trying again...', LOG_TYPES.ERROR);
+            throw new Error('Profile page didn\'t load properly, trying again...');
         }
         const privatePageSel = '.rkEop';
         const elPrivate = await page.$(`${privatePageSel}`);
@@ -107,10 +109,11 @@ const scrapePosts = async ({ page, itemSpec, entryData, scrollingState, puppetee
     }
 
     if (itemSpec.pageType === PAGE_TYPES.PLACE || itemSpec.pageType === PAGE_TYPES.HASHTAG) {
-        const el = await page.$('.EZdmt');
-        if (!el) {
-            log(itemSpec, `Place/location or hashtag page didn't load properly, trying again...`, LOG_TYPES.ERROR);
-            throw new Error(`Place/location or hashtag page didn't load properly, trying again...`);
+        try {
+            await page.waitForSelector('.EZdmt');
+        } catch (e) {
+            log(itemSpec, 'Place/location or hashtag page didn\'t load properly, trying again...', LOG_TYPES.ERROR);
+            throw new Error('Place/location or hashtag page didn\'t load properly, trying again...');
         }
     }
 
@@ -132,10 +135,10 @@ const scrapePosts = async ({ page, itemSpec, entryData, scrollingState, puppetee
         await Apify.pushData(postsReadyToPush);
     } else {
         log(itemSpec, 'Waiting for initial data to load');
-        while (!initData[itemSpec.id]) await page.waitFor(100);
+        while (!initData[itemSpec.id]) await sleep(100);
     }
 
-    await page.waitFor(500);
+    await sleep(500);
 
     const hasMostRecentPostsOnHashtagPage = itemSpec.pageType === PAGE_TYPES.HASHTAG
         ? await page.evaluate(() => document.querySelector('article > h2') !== null
@@ -145,7 +148,7 @@ const scrapePosts = async ({ page, itemSpec, entryData, scrollingState, puppetee
     // Places/locations don't allow scrolling without login
     const isUnloggedPlace = itemSpec.pageType === PAGE_TYPES.PLACE && !itemSpec.input.loginCookies;
     if (isUnloggedPlace) {
-        log(itemSpec, `Place/location pages allow scrolling only under login, collecting initial posts and finishing`, LOG_TYPES.WARNING);
+        log(itemSpec, 'Place/location pages allow scrolling only under login, collecting initial posts and finishing', LOG_TYPES.WARNING);
         await puppeteerPool.retire(page.browser());
         return;
     }
@@ -154,7 +157,7 @@ const scrapePosts = async ({ page, itemSpec, entryData, scrollingState, puppetee
     if (hasNextPage) {
         const shouldContinue = shouldContinueScrolling({ itemSpec, scrollingState, oldItemCount: 0, type: 'posts' });
         if (shouldContinue) {
-            await page.waitFor(1000);
+            await sleep(1000);
             await finiteScroll({
                 itemSpec,
                 page,
@@ -168,7 +171,6 @@ const scrapePosts = async ({ page, itemSpec, entryData, scrollingState, puppetee
         // We have to forcefully close the browser here because it hangs sometimes for some listeners reasons
         // Because we always have max one page per browser, this is fine
         await puppeteerPool.retire(page.browser());
-        return;
     }
 };
 
@@ -220,7 +222,7 @@ async function handlePostsGraphQLResponse({ page, response, scrollingState }) {
     await Apify.pushData(postsReadyToPush);
 }
 
-function parsePostsForOutput (posts, itemSpec, currentScrollingPosition) {
+function parsePostsForOutput(posts, itemSpec, currentScrollingPosition) {
     return posts.map((item, index) => ({
         '#debug': {
             ...itemSpec,
@@ -233,7 +235,7 @@ function parsePostsForOutput (posts, itemSpec, currentScrollingPosition) {
         queryLocation: itemSpec.locationName,
         position: currentScrollingPosition + 1 + index,
         ...formatSinglePost(item.node),
-    }))
+    }));
 }
 
 module.exports = {

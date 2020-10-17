@@ -7,6 +7,7 @@ const { getPostLikes } = require('./likes');
 const { getProfileFollowedBy } = require('./followed_by');
 const { getProfileFollowing } = require('./following');
 const { xhrNotLoaded } = require('./errors');
+const { sleep } = Apify.utils;
 
 // Formats IGTV Video Post edge item into nicely formated output item
 const formatIGTVVideo = (edge) => {
@@ -201,7 +202,7 @@ const scrapeDetails = async ({ input, request, itemSpec, entryData, page, proxy,
     let sleepLength = 0;
     while (includeHasStories && typeof page.hasPublicStory === 'undefined' && sleepLength < 5000) {
         // Apify.utils.log.debug(`Sleeping for ${sleepLength}`)
-        await Apify.utils.sleep(100);
+        await sleep(100);
         sleepLength += 100;
     }
     // throw error when XHR request not loaded correctly

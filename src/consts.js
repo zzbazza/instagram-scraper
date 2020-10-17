@@ -30,11 +30,11 @@ module.exports = {
         HASHTAG: 'hashtag',
     },
     PAGE_TYPE_URL_REGEXES: {
-        PLACE: /https:\/\/www\.instagram\.com\/explore\/locations\/.+/,
-        PROFILE: /https:\/\/www\.instagram\.com\/[^/]{2,}\/?$/,
-        HASHTAG: /https:\/\/www\.instagram\.com\/explore\/tags\/.+/,
-        POST: /https:\/\/www\.instagram.com\/p\/.+/,
-        STORY: /https:\/\/www\.instagram\.com\/stories\/.+/,
+        PLACE: /https:\/\/www\.instagram\.com\/explore\/locations\/.+/u,
+        PROFILE: /https:\/\/www\.instagram\.com\/[^/]{2,}\/?$/u,
+        HASHTAG: /https:\/\/www\.instagram\.com\/explore\/tags\/.+/u,
+        POST: /https:\/\/www\.instagram\.com\/p\/.+/u,
+        STORY: /https:\/\/www\.instagram\.com\/stories\/.+/u,
     },
     // Instagrams GraphQL Endpoint URL
     GRAPHQL_ENDPOINT: 'https://www.instagram.com/graphql/query/?query_hash=',
@@ -51,9 +51,11 @@ module.exports = {
         // Manifest and stylesheets have to be present!!!
     ],
     ABORT_RESOURCE_URL_INCLUDES: [
-        'map_tile.php',
-        'connect.facebook.net',
-        'logging_client_events',
+        '/map_tile.php',
+        '/connect.facebook.net',
+        '/logging_client_events',
+        '/falco',
+        '/bz',
     ],
     // These are needed for scrolling to work
     // TODO: Retest this
@@ -63,7 +65,6 @@ module.exports = {
         'es6/PostPageContainer',
         'es6/PostPageComments',
         'es6/PostComment',
-        'es6/cs_CZ.js',
         'es6/en',
         'es6/Vendor',
         'es6/ActivityFeedBox'

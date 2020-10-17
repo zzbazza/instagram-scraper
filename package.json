@@ -27,5 +27,8 @@
 	"author": "Jaroslav Hejlek",
 	"license": "ISC",
 	"homepage": "https://github.com/gippy/instagram-scraper",
-	"devDependencies": {}
+	"devDependencies": {
+		"@apify/eslint-config": "^0.1.3",
+		"eslint": "^7.11.0"
+	}
 }

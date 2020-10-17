@@ -2,6 +2,7 @@ const Apify = require('apify');
 const { pleaseOpen, liveView, localhost } = require('./asci-texts.js');
 const { authorize, close } = require('./submit-page.js');
 const http = require('http');
+const { sleep } = Apify.utils;
 
 /**
  * Attempts log user into instagram with provided username and password
@@ -11,23 +12,23 @@ const http = require('http');
  * @return Does not return anything
  */
 const login = async (username, password, page) => {
-    await Apify.utils.log.info(`Attempting to log in`);
+    Apify.utils.log.info(`Attempting to log in`);
 
     try {
         await page.goto('https://www.instagram.com/accounts/login/?source=auth_switcher');
         await page.waitForSelector('input[name="username"]');
         await page.waitForSelector('input[name="password"]');
         await page.waitForSelector('button[type="submit"]');
-        await Apify.utils.sleep(1000);
+        await sleep(1000);
 
         await page.type('input[name="username"]', username, { delay: 150 });
         await page.type('input[name="password"]', password, { delay: 180 });
-        await Apify.utils.sleep(1000);
+        await sleep(1000);
 
         await page.click('button[type="submit"]');
 
         await page.waitForNavigation();
-        await Apify.utils.sleep(1000);
+        await sleep(1000);
 
         await page.waitForSelector('form button');
         await page.click('form button');
@@ -71,16 +72,16 @@ const login = async (username, password, page) => {
         await page.waitForSelector('input[name="security_code"]');
         await page.waitForSelector('form button');
         await page.type('input[name="security_code"]', code, { delay: 150 });
-        await Apify.utils.sleep(1000);
+        await sleep(1000);
         await page.click('form button');
 
         await page.waitForNavigation();
 
-        await Apify.utils.log.info(`Successfully logged in`);
-        await Apify.utils.sleep(3000);
+        Apify.utils.log.info(`Successfully logged in`);
+        await sleep(3000);
     } catch (error) {
-        await Apify.utils.log.info('Failed to log in');
-        await Apify.utils.log.error(error);
+        Apify.utils.log.info('Failed to log in');
+        Apify.utils.log.error(error);
         process.exit(1);
     }
 }
