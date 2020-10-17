@@ -1,3 +1,14 @@
+### 2020-10-11 Bug fixes and some improvements
+
+#### Bug fixes
+- Hotfix for pages not loading properly
+- Accept cookies modal when it's shown
+- Fix unicode urls
+- Fix scrolling with posts with body scroll
+- Remove legacy code
+- Some linting
+- Support for unicode hashtags and mentions
+
 ### 2020-06-11 Big update with many fixes and new features
 
 #### Bug fixes

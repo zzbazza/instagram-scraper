@@ -245,17 +245,20 @@ function parseExtendOutputFunction(extendOutputFunction) {
     }
 }
 
+/**
+ * @param {string} caption
+ */
 function parseCaption(caption) {
     if (!caption) {
         return { hashtags: [], mentions: [] };
     }
-    // TODO: Figure out more precise regexes
-    // \w doesn't work because we might get non ASCI characters
-    // /#[\S]+?\b/g - doesn't parse non ASCII characters properly
-    const HASHTAG_REGEX = /#[\S]+\b/g;
-    const MENTION_REGEX = /@[\S]+\b/g;
-    const hashtags = (caption.match(HASHTAG_REGEX) || []).map((hashtag) => hashtag.replace('#', ''));
-    const mentions = (caption.match(MENTION_REGEX) || []).map((mention) => mention.replace('@', ''));
+    // last part means non-spaced tags, like #some#tag#here
+    // works with unicode characters. de-duplicates tags and mentions
+    const HASHTAG_REGEX = /#([\S]+?)(?=\s|$|[#@])/gums;
+    const MENTION_REGEX = /@([\S]+?)(?=\s|$|[#@])/gums;
+    const clean = (regex) => [...new Set(([...caption.matchAll(regex)] || []).filter((s) => s[1]).map((s) => s[1].trim()))];
+    const hashtags = clean(HASHTAG_REGEX);
+    const mentions = clean(MENTION_REGEX);
     return { hashtags, mentions };
 }
 

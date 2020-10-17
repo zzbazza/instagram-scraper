@@ -202,6 +202,11 @@ async function main() {
         await page.evaluateOnNewDocument((pageType) => {
             window.addEventListener('load', () => {
                 document.body.style.overflow = pageType === 'post' ? 'hidden' : '';
+                const cookieModalButton = document.querySelectorAll('[role="presentation"] [role="dialog"] button:first-of-type');
+
+                if (cookieModalButton.length) {
+                    cookieModalButton[0].click();
+                }
             });
         }, request.userData.pageType);
 
