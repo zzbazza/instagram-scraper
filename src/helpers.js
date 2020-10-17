@@ -1,6 +1,6 @@
 const Apify = require('apify');
 const tunnel = require('tunnel');
-const { CookieJar } = require('tough-cookie')
+const { CookieJar } = require('tough-cookie');
 const got = require('got');
 const safeEval = require('safe-eval');
 const { URLSearchParams } = require('url');
@@ -8,13 +8,15 @@ const errors = require('./errors');
 const { expandOwnerDetails } = require('./user-details');
 const { PAGE_TYPES, GRAPHQL_ENDPOINT, LOG_TYPES, PAGE_TYPE_URL_REGEXES } = require('./consts');
 
+const { sleep } = Apify.utils;
+
 const getPageTypeFromUrl = (url) => {
     for (const [pageType, regex] of Object.entries(PAGE_TYPE_URL_REGEXES)) {
         if (url.match(regex)) {
             return PAGE_TYPES[pageType];
         }
     }
-}
+};
 
 /**
  * Takes object from _sharedData.entry_data and parses it into simpler object
@@ -86,7 +88,7 @@ const getLogLabel = (pageData) => {
         case PAGE_TYPES.PROFILE: return `User "${pageData.userUsername}"`;
         case PAGE_TYPES.HASHTAG: return `Tag "${pageData.tagName}"`;
         case PAGE_TYPES.POST: return `Post "${pageData.id}"`;
-        case PAGE_TYPES.STORY: return `Story`;
+        case PAGE_TYPES.STORY: return 'Story';
         default: throw new Error('Not supported');
     }
 };
@@ -110,15 +112,21 @@ const getCheckedVariable = (pageType) => {
  * @param {Object} pageData Parsed page data
  * @param {String} message Message to be outputed
  */
-function log (itemSpec, message, type = 'info') {
+function log(itemSpec, message, type = 'info') {
     const label = getLogLabel(itemSpec);
     Apify.utils.log[type](`${label}: ${message}`);
-};
+}
 
 const grapqlEndpoint = 'https://www.instagram.com/graphql/query/';
 
+/**
+ * @param {Puppeteer.Page} page
+ * @param {any} input
+ */
 async function getGotParams(page, input) {
     let proxyConfig = { ...input.proxy };
+
+    await Apify.createProxyConfiguration(proxyConfig);
 
     const userAgent = await page.browser().userAgent();
 
@@ -140,7 +148,7 @@ async function getGotParams(page, input) {
     proxyConfig = {
         hostname: proxyHost[0],
         proxyAuth: proxyUrlParts[1],
-    }
+    };
     if (proxyHost[1]) proxyConfig.port = proxyHost[1];
 
     const agent = tunnel.httpsOverHttp({
@@ -161,7 +169,7 @@ async function getGotParams(page, input) {
             'user-agent': userAgent,
         },
         json: true,
-    }
+    };
 }
 
 async function query(gotParams, searchParams, nodeTransformationFunc, itemSpec, logPrefix) {
@@ -174,8 +182,10 @@ async function query(gotParams, searchParams, nodeTransformationFunc, itemSpec, 
         } catch (error) {
             if (error.message.includes(429)) {
                 log(itemSpec, `${logPrefix} - Encountered rate limit error, waiting ${(retries + 1) * 10} seconds.`, LOG_TYPES.WARNING);
-                await Apify.utils.sleep((retries + 1) * 10000);
-            } else await Apify.utils.log.error(error);
+                await sleep((retries + 1) * 10000);
+            } else {
+                Apify.utils.log.error(error);
+            }
             retries++;
         }
     }
@@ -189,14 +199,14 @@ async function finiteQuery(queryId, variables, nodeTransformationFunc, limit, pa
     log(itemSpec, `${logPrefix} - Loading up to ${limit} items`);
     let hasNextPage = true;
     let endCursor = null;
-    let results = [];
+    const results = [];
     while (hasNextPage && results.length < limit) {
         const queryParams = {
             query_hash: queryId,
             variables: {
                 ...variables,
                 first: 50,
-            }
+            },
         };
         if (endCursor) queryParams.variables.after = endCursor;
         const searchParams = new URLSearchParams([['query_hash', queryParams.query_hash], ['variables', JSON.stringify(queryParams.variables)]]);
@@ -221,7 +231,7 @@ async function singleQuery(queryId, variables, nodeTransformationFunc, page, ite
     return query(gotParams, searchParams, nodeTransformationFunc, itemSpec, logPrefix);
 }
 
-function parseExtendOutputFunction (extendOutputFunction) {
+function parseExtendOutputFunction(extendOutputFunction) {
     let parsedExtendOutputFunction;
     if (typeof extendOutputFunction === 'string' && extendOutputFunction.trim() !== '') {
         try {
@@ -235,21 +245,21 @@ function parseExtendOutputFunction (extendOutputFunction) {
     }
 }
 
-function parseCaption (caption) {
+function parseCaption(caption) {
     if (!caption) {
         return { hashtags: [], mentions: [] };
     }
     // TODO: Figure out more precise regexes
     // \w doesn't work because we might get non ASCI characters
     // /#[\S]+?\b/g - doesn't parse non ASCII characters properly
-    const HASHTAG_REGEX = /#[\S]+\b/g
-    const MENTION_REGEX = /@[\S]+\b/g
+    const HASHTAG_REGEX = /#[\S]+\b/g;
+    const MENTION_REGEX = /@[\S]+\b/g;
     const hashtags = (caption.match(HASHTAG_REGEX) || []).map((hashtag) => hashtag.replace('#', ''));
     const mentions = (caption.match(MENTION_REGEX) || []).map((mention) => mention.replace('@', ''));
     return { hashtags, mentions };
 }
 
-function hasReachedLastPostDate (scrapePostsUntilDate, lastPostDate, itemSpec) {
+function hasReachedLastPostDate(scrapePostsUntilDate, lastPostDate, itemSpec) {
     const lastPostDateAsDate = new Date(lastPostDate);
     if (scrapePostsUntilDate) {
         // We want to continue scraping (return true) if the scrapePostsUntilDate is older (smaller) than the date of the last post
@@ -262,10 +272,10 @@ function hasReachedLastPostDate (scrapePostsUntilDate, lastPostDate, itemSpec) {
         }
     }
     return false;
-};
+}
 
 // Ttems can be posts or commets from scrolling
-async function filterPushedItemsAndUpdateState ({ items, itemSpec, parsingFn, scrollingState, type, page }) {
+async function filterPushedItemsAndUpdateState({ items, itemSpec, parsingFn, scrollingState, type, page }) {
     if (!scrollingState[itemSpec.id]) {
         scrollingState[itemSpec.id] = {
             allDuplicates: false,
@@ -327,13 +337,13 @@ const shouldContinueScrolling = ({ scrollingState, itemSpec, oldItemCount, type 
     }
 
     const itemsScrapedCount = Object.keys(scrollingState[itemSpec.id].ids).length;
-    const reachedLimit = itemsScrapedCount >= itemSpec.limit
+    const reachedLimit = itemsScrapedCount >= itemSpec.limit;
     if (reachedLimit) {
         console.warn(`Reached max results (posts or commets) limit: ${itemSpec.limit}. Finishing scrolling...`);
     }
     const shouldGoNextGeneric = !reachedLimit && (itemsScrapedCount !== oldItemCount || scrollingState[itemSpec.id].allDuplicates);
     return shouldGoNextGeneric;
-}
+};
 
 const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
     // console.log('Starting load more fn')
@@ -354,7 +364,7 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
     for (let i = 0; i < 10; i++) {
         let elements;
         if (type === 'posts') {
-            elements = await page.$x("//div[contains(text(), 'Show More Posts')]");
+            elements = await page.$$('button.tCibT');
         } else if (type === 'comments') {
             elements = await page.$$('[aria-label="Load more comments"]');
         } else {
@@ -409,34 +419,34 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
     let data = null;
     const response = await responsePromise;
     if (!response) {
-        log(itemSpec, `Didn't receive a valid response in the current scroll, scrolling again...`, LOG_TYPES.WARNING);
+        log(itemSpec, 'Didn\'t receive a valid response in the current scroll, scrolling again...', LOG_TYPES.WARNING);
     } else {
     // if (scrolled[1] || clicked[1]) {
         try {
-            //const response = await responsePromise;
-            //if (!response) {
+            // const response = await responsePromise;
+            // if (!response) {
             //    log(itemSpec, `Didn't receive a valid response in the current scroll, scrolling more...`, LOG_TYPES.WARNING);
-            //} else {
-                const status = await response.status();
+            // } else {
+            const status = await response.status();
 
-                if (status === 429) {
-                    return { rateLimited: true };
+            if (status === 429) {
+                return { rateLimited: true };
+            }
+
+            if (status !== 200) {
+                log(itemSpec, `Got error status while scrolling: ${status}`, LOG_TYPES.ERROR);
+            } else {
+                let json;
+                try {
+                    json = await response.json();
+                } catch (e) {
+                    log(itemSpec, 'Cannot parse response body', LOG_TYPES.EXCEPTION);
+                    console.dir(response);
                 }
 
-                if (status !== 200) {
-                    log(itemSpec, `Got error status while scrolling: ${status}`, LOG_TYPES.ERROR);
-                } else {
-                    let json;
-                    try {
-                        json = await response.json();
-                    } catch (e) {
-                        log(itemSpec, 'Cannot parse response body', LOG_TYPES.EXCEPTION);
-                        console.dir(response);
-                    }
-
-                    // eslint-disable-next-line prefer-destructuring
-                    if (json) data = json.data;
-                }
+                // eslint-disable-next-line prefer-destructuring
+                if (json) data = json.data;
+            }
             // }
         } catch (error) {
             // Apify.utils.log.error(error);
@@ -453,15 +463,15 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
         } else if (type === 'comments') {
             scrollYAxis = 1000;
         }
-        await page.evaluate((scrollYAxis) => scrollBy(0, scrollYAxis), scrollYAxis)
+        await page.evaluate((scrollYAxis) => window.scrollBy(0, scrollYAxis), scrollYAxis);
         const retryDelay = retry ? (retry + 1) * retry * 1000 : (retry + 1) * 1000;
         log(itemSpec, `Retry scroll after ${retryDelay / 1000} seconds`);
-        await page.waitFor(retryDelay);
+        await sleep(retryDelay);
         return loadMore({ itemSpec, page, retry: retry + 1, type });
     }
 
-    await page.waitFor(100);
-    return  { data };
+    await sleep(100);
+    return { data };
 };
 
 const finiteScroll = async (context) => {
@@ -478,7 +488,7 @@ const finiteScroll = async (context) => {
     const { data, rateLimited } = await loadMore({ itemSpec, page, type });
 
     if (rateLimited) {
-        log(itemSpec, `Scrolling got blocked by Instagram, finishing! Please increase the "scrollWaitSecs" input and run again.`, LOG_TYPES.EXCEPTION);
+        log(itemSpec, 'Scrolling got blocked by Instagram, finishing! Please increase the "scrollWaitSecs" input and run again.', LOG_TYPES.EXCEPTION);
         return;
     }
 
@@ -486,12 +496,12 @@ const finiteScroll = async (context) => {
     if (data) {
         const { hasNextPage } = getItemsFromGraphQLFn({ data, pageType: itemSpec.pageType });
         if (!hasNextPage) {
-            log(itemSpec, `Cannot find new page of scrolling, storing last page dump to KV store`, LOG_TYPES.WARNING);
+            log(itemSpec, 'Cannot find new page of scrolling, storing last page dump to KV store', LOG_TYPES.WARNING);
             await Apify.setValue(`LAST-PAGE-DUMP-${itemSpec.id}`, data);
             // We have to do these retires because the browser sometimes hang on, should be fixable with something else though
             await puppeteerPool.retire(page.browser());
-            return
-        };
+            return;
+        }
     }
     // console.log('Got data from graphQl')
 
@@ -504,22 +514,21 @@ const finiteScroll = async (context) => {
         if (modulo >= 0 && modulo < 12) { // Every 100 posts: Wait random for user passed time with some randomization
             const waitSecs = Math.round(scrollWaitSecs * (Math.random() + 1));
             log(itemSpec, `Sleeping for ${waitSecs} seconds to prevent getting rate limit error..`);
-            await page.waitFor(waitSecs * 1000);
+            await sleep(waitSecs * 1000);
         }
     }
 
     // Small ranom wait (200-600ms) in between each scroll
     const waitMs = Math.round(200 * (Math.random() * 2 + 1));
     // console.log(`Waiting for ${waitMs} ms`);
-    await page.waitFor(waitMs);
+    await sleep(waitMs);
 
-    const doContinue = shouldContinueScrolling({ scrollingState, itemSpec, oldItemCount, type })
+    const doContinue = shouldContinueScrolling({ scrollingState, itemSpec, oldItemCount, type });
 
     if (doContinue) {
         await finiteScroll(context);
     } else {
         await puppeteerPool.retire(page.browser());
-        return
     }
 };
 

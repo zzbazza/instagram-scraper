@@ -33,7 +33,7 @@ module.exports = {
         PLACE: /https:\/\/www\.instagram\.com\/explore\/locations\/.+/,
         PROFILE: /https:\/\/www\.instagram\.com\/[^/]{2,}\/?$/,
         HASHTAG: /https:\/\/www\.instagram\.com\/explore\/tags\/.+/,
-        POST: /https:\/\/www\.instagram.com\/p\/.+/,
+        POST: /https:\/\/www\.instagram\.com\/p\/.+/,
         STORY: /https:\/\/www\.instagram\.com\/stories\/.+/,
     },
     // Instagrams GraphQL Endpoint URL
@@ -51,9 +51,11 @@ module.exports = {
         // Manifest and stylesheets have to be present!!!
     ],
     ABORT_RESOURCE_URL_INCLUDES: [
-        'map_tile.php',
-        'connect.facebook.net',
-        'logging_client_events',
+        '/map_tile.php',
+        '/connect.facebook.net',
+        '/logging_client_events',
+        '/falco',
+        '/bz',
     ],
     // These are needed for scrolling to work
     // TODO: Retest this
@@ -63,7 +65,6 @@ module.exports = {
         'es6/PostPageContainer',
         'es6/PostPageComments',
         'es6/PostComment',
-        'es6/cs_CZ.js',
         'es6/en',
         'es6/Vendor',
         'es6/ActivityFeedBox'

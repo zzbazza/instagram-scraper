@@ -1,6 +1,8 @@
 const Apify = require('apify');
 const { QUERY_IDS } = require('./query_ids');
 
+const { sleep } = Apify.utils;
+
 const { postQueryId } = QUERY_IDS;
 
 const users = {};
@@ -15,7 +17,7 @@ async function expandOwnerDetails(posts, page, itemSpec) {
     };
     const transformedPosts = [];
     for (let i = 0; i < posts.length; i++) {
-        log(itemSpec, `Owner details - Expanding owner details of post ${i+1}/${posts.length}`);
+        log(itemSpec, `Owner details - Expanding owner details of post ${i + 1}/${posts.length}`);
         if (!posts[i].ownerId) {
             transformedPosts.push(posts[i]);
             continue;
@@ -39,7 +41,7 @@ async function expandOwnerDetails(posts, page, itemSpec) {
         newPost.ownerUsername = users[posts[i].ownerId].username;
         newPost.owner = users[posts[i].ownerId];
         transformedPosts.push(newPost);
-        await Apify.utils.sleep(500);
+        await sleep(500);
     }
     log(itemSpec, `Owner details - Details for ${posts.length} items expanded.`);
     return transformedPosts;
@@ -48,4 +50,3 @@ async function expandOwnerDetails(posts, page, itemSpec) {
 module.exports = {
     expandOwnerDetails,
 };
-

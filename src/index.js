@@ -13,6 +13,8 @@ const errors = require('./errors');
 const { login } = require('./login');
 const { LoginCookiesStore } = require('./cookies');
 
+const { sleep } = Apify.utils;
+
 async function main() {
     const input = await Apify.getInput();
     const {
@@ -41,8 +43,8 @@ async function main() {
     // TODO: Cleanup individual users/posts after all posts/comments are pushed
     const scrollingState = (await Apify.getValue('STATE-SCROLLING')) || {};
     const persistState = async () => {
-        await Apify.setValue('STATE-SCROLLING', scrollingState)
-    }
+        await Apify.setValue('STATE-SCROLLING', scrollingState);
+    };
     setInterval(persistState, 5000);
     Apify.events.on('persistState', persistState);
 
@@ -70,14 +72,14 @@ async function main() {
     }
 
     if (proxy && proxy.useApifyProxy && (!proxy.apifyProxyGroups || !proxy.apifyProxyGroups.includes('RESIDENTIAL'))) {
-        Apify.utils.log.warning('You are using Apify proxy but not residential group! It is very likely it will not work properly. Please contact support@apify.com for access to residential proxy.')
+        Apify.utils.log.warning('You are using Apify proxy but not residential group! It is very likely it will not work properly. Please contact support@apify.com for access to residential proxy.');
     }
 
     const proxyConfiguration = await Apify.createProxyConfiguration(proxy);
     let urls;
     if (Array.isArray(directUrls) && directUrls.length > 0) {
         Apify.utils.log.warning('Search is disabled when Direct URLs are used');
-        urls = directUrls
+        urls = directUrls;
     } else {
         urls = await searchUrls(input, proxyConfiguration ? proxyConfiguration.newUrl() : undefined);
     }
@@ -90,7 +92,7 @@ async function main() {
         },
     }));
 
-    Apify.utils.log.info(`Parsed start URLs:`);
+    Apify.utils.log.info('Parsed start URLs:');
     console.dir(requestListSources);
 
     if (requestListSources.length === 0) {
@@ -100,51 +102,67 @@ async function main() {
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
 
+    /**
+     * @type {Apify.PuppeteerGoto}
+     */
     const gotoFunction = async ({ request, page, puppeteerPool, autoscaledPool }) => {
         loginCookiesStore.setPuppeteerPool(puppeteerPool); // get puppeteerPool instance
         loginCookiesStore.setAutoscaledPool(autoscaledPool); // get autoscaledPool instance
         await page.setBypassCSP(true);
         if (loginUsername && loginPassword) {
-            await login(loginUsername, loginPassword, page)
+            await login(loginUsername, loginPassword, page);
             const cookies = await page.cookies();
             if (SCRAPE_TYPES.COOKIES === resultsType) {
                 await Apify.pushData(cookies);
-                return;
+                return null;
             }
         }
 
         // TODO: Refactor to use https://sdk.apify.com/docs/api/puppeteer#puppeteerblockrequestspage-options
         // Keep in mind it requires more manual setup than page.setRequestInterception
-        await page.setRequestInterception(true);
+        // await page.setRequestInterception(true);
 
-        const isScrollPage = resultsType === SCRAPE_TYPES.POSTS || resultsType === SCRAPE_TYPES.COMMENTS;
-        Apify.utils.log.debug(`Is scroll page: ${isScrollPage}`);
+        // const isScrollPage = resultsType === SCRAPE_TYPES.POSTS || resultsType === SCRAPE_TYPES.COMMENTS;
+        // Apify.utils.log.debug(`Is scroll page: ${isScrollPage}`);
 
-        const { pageType } = request.userData;
-        Apify.utils.log.info(`Opening page type: ${pageType} on ${request.url}`);
+        // const { pageType } = request.userData;
+        // Apify.utils.log.info(`Opening page type: ${pageType} on ${request.url}`);
 
-        page.on('request', (req) => {
-            // We need to load some JS when we want to scroll
-            // Hashtag & place pages seems to require even more JS allowed but this needs more research
-            // Stories needs JS files
-            const isJSBundle = req.url().includes('instagram.com/static/bundles/');
-            const abortJSBundle = isScrollPage
-                ? (!ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => req.url().includes(urlMatch)) &&
-                    ![PAGE_TYPES.HASHTAG, PAGE_TYPES.PLACE].includes(pageType))
-                : true
+        // page.on('request', (req) => {
+        //     // We need to load some JS when we want to scroll
+        //     // Hashtag & place pages seems to require even more JS allowed but this needs more research
+        //     // Stories needs JS files
+        //     const isJSBundle = req.url().includes('instagram.com/static/bundles/');
+        //     const abortJSBundle = isScrollPage
+        //         ? (!ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => req.url().includes(urlMatch)) &&
+        //             ![PAGE_TYPES.HASHTAG, PAGE_TYPES.PLACE].includes(pageType))
+        //         : true
 
-            if (
-                ABORT_RESOURCE_TYPES.includes(req.resourceType())
-                || ABORT_RESOURCE_URL_INCLUDES.some((urlMatch) => req.url().includes(urlMatch))
-                || (isJSBundle && abortJSBundle && pageType !== PAGE_TYPES.STORY && !includeHasStories)
-            ) {
-                // Apify.utils.log.debug(`Aborting url: ${req.url()}`);
-                return req.abort();
-            }
-            // Apify.utils.log.debug(`Processing url: ${req.url()}`);
-            req.continue();
+        //     if (
+        //         ABORT_RESOURCE_TYPES.includes(req.resourceType())
+        //         || ABORT_RESOURCE_URL_INCLUDES.some((urlMatch) => req.url().includes(urlMatch))
+        //         || (isJSBundle && abortJSBundle && pageType !== PAGE_TYPES.STORY && !includeHasStories)
+        //     ) {
+        //         // Apify.utils.log.debug(`Aborting url: ${req.url()}`);
+        //         return req.abort();
+        //     }
+        //     // Apify.utils.log.debug(`Processing url: ${req.url()}`);
+        //     req.continue();
+        // });
+        await Apify.utils.puppeteer.blockRequests(page, {
+            urlPatterns: [
+                '.ico',
+                '.png',
+                '.mp4',
+                '.avi',
+                '.webp',
+                '.jpg',
+                '.jpeg',
+                '.gif',
+                '.svg',
+            ],
+            extraUrlPatterns: ABORT_RESOURCE_URL_INCLUDES,
         });
-
 
         page.on('response', async (response) => {
             const responseUrl = response.url();
@@ -153,7 +171,7 @@ async function main() {
             if (!responseUrl.startsWith(GRAPHQL_ENDPOINT)) return;
 
             // Wait for the page to parse it's data
-            while (!page.itemSpec) await page.waitFor(100);
+            while (!page.itemSpec) await sleep(100);
 
             try {
                 switch (resultsType) {
@@ -172,12 +190,20 @@ async function main() {
             }
         });
 
-        page.on('requestfailed', request => {
+        page.on('requestfailed', (request) => {
             // Story data are not loaded if js fails
             if (ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => request.url().includes(urlMatch) && resultsType === SCRAPE_TYPES.STORIES)) {
                 page.storiesLoaded = false;
             }
         });
+
+        // make sure the post page don't scroll outside when scrolling for comments,
+        // otherwise it will hang forever
+        await page.evaluateOnNewDocument((pageType) => {
+            window.addEventListener('load', () => {
+                document.body.style.overflow = pageType === 'post' ? 'hidden' : '';
+            });
+        }, request.userData.pageType);
 
         const response = await page.goto(request.url, {
             // itemSpec timeouts
@@ -186,7 +212,7 @@ async function main() {
 
         if (loginCookiesStore.usingLogin()) {
             try {
-                const browser = await page.browser();
+                const browser = page.browser();
                 const viewerId = await page.evaluate(() => window._sharedData.config.viewerId);
                 if (!viewerId) {
                     // choose other cookie from store or exit if no other available
@@ -203,12 +229,15 @@ async function main() {
                 }
             } catch (loginError) {
                 Apify.utils.log.error(loginError);
-                throw new Error(`Page didn't load properly with login, retrying...`);
+                throw new Error('Page didn\'t load properly with login, retrying...');
             }
         }
         return response;
     };
 
+    /**
+     * @type {Apify.PuppeteerHandlePage}
+     */
     const handlePageFunction = async ({ page, puppeteerPool, request, response }) => {
         if (SCRAPE_TYPES.COOKIES === resultsType) return;
 
@@ -222,7 +251,7 @@ async function main() {
             return;
         }
         // eslint-disable-next-line no-underscore-dangle
-        await page.waitFor(() => (!window.__initialData.pending && window.__initialData && window.__initialData.data), { timeout: 20000 });
+        await page.waitForFunction(() => (!window.__initialData.pending && window.__initialData && window.__initialData.data), { timeout: 20000 });
         // eslint-disable-next-line no-underscore-dangle
         const { pending, data } = await page.evaluate(() => window.__initialData);
         if (pending) throw new Error('Page took too long to load initial data, trying again.');
@@ -260,10 +289,10 @@ async function main() {
             // Wait for Data scraped from graphQL
             let sleepLength = 0;
             while (typeof page.storiesLoaded === 'undefined' && sleepLength < 10000) {
-                await Apify.utils.sleep(100);
+                await sleep(100);
                 sleepLength += 100;
             }
-            if (!page.storiesLoaded) throw new Error(`JS needed for stories does not loaded properly, retrying...`);
+            if (!page.storiesLoaded) throw new Error('JS needed for stories does not loaded properly, retrying...');
         } else {
             page.itemSpec = itemSpec;
             switch (resultsType) {
@@ -280,7 +309,7 @@ async function main() {
                         page,
                         proxy,
                         userResult,
-                        includeHasStories
+                        includeHasStories,
                     });
                 default:
                     throw new Error('Not supported');
@@ -288,10 +317,12 @@ async function main() {
         }
     };
 
+    /**
+     * @type {Apify.LaunchPuppeteerFunction}
+     */
     const launchPuppeteerFunction = async (options) => {
         const browser = await Apify.launchPuppeteer({
             ...options,
-            proxyUrl: proxyConfiguration ? proxyConfiguration.newUrl() : undefined
         });
 
         const cookies = loginCookiesStore.randomCookie(browser.process().pid);
@@ -301,7 +332,7 @@ async function main() {
         }
 
         return browser;
-    }
+    };
 
     const requestQueue = await Apify.openRequestQueue();
 
@@ -317,9 +348,14 @@ async function main() {
         launchPuppeteerOptions: {
             stealth: true,
             useChrome: Apify.isAtHome(),
+            stealthOptions: {
+                addLanguage: false,
+            },
             ignoreHTTPSErrors: true,
             args: ['--enable-features=NetworkService', '--ignore-certificate-errors'],
         },
+        useSessionPool: true,
+        proxyConfiguration: proxyConfiguration || undefined,
         launchPuppeteerFunction,
         maxConcurrency,
         handlePageTimeoutSecs: 300 * 60, // Ex: 5 hours to crawl thousands of comments
@@ -336,8 +372,7 @@ async function main() {
     });
 
     await crawler.run();
-    if (loginCookiesStore.invalidCookies().length > 0)
-        Apify.utils.log.warning(`Invalid cookies: ${loginCookiesStore.invalidCookies().join('; ')}`);
+    if (loginCookiesStore.invalidCookies().length > 0) Apify.utils.log.warning(`Invalid cookies: ${loginCookiesStore.invalidCookies().join('; ')}`);
 }
 
 module.exports = main;
