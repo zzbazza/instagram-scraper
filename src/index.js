@@ -331,7 +331,7 @@ async function main() {
         });
 
         const cookies = loginCookiesStore.randomCookie(browser.process().pid);
-        if (cookies) {
+        if (cookies && cookies.length) {
             const page = await browser.newPage();
             await page.setCookie(...cookies);
         }

@@ -47,7 +47,7 @@ const LoginCookiesStore = class CookiesStore {
         for (const key in this.cookiesStore) {
             if (!this.cookiesStore[key].browserPid) keys.push(key)
         }
-        if (keys.length === 0) return {};
+        if (keys.length === 0) return null;
         // check active instances && cleanup used cookies
         if (this.puppeteerPool) {
             const pids = this.activeBrowserPids(this.puppeteerPool);
