@@ -218,9 +218,13 @@ const scrapeDetails = async ({ input, request, itemSpec, entryData, page, proxy,
 
 // Parse xhr request for detail page
 const handleDetailsGraphQLResponse = async ({ page, response }) => {
-    const data = await response.json();
-    if (data.data && data.data.user) {
-        page.hasPublicStory = data.data.user.has_public_story;
+    try {
+        const data = await response.json();
+        if (data.data && data.data.user) {
+            page.hasPublicStory = data.data.user.has_public_story;
+        }
+    } catch (e) {
+        Apify.utils.log.debug(`handleDetailsGraphQLResponse error: ${e.message}`, { stack: e.stack });
     }
 };
 

@@ -28,6 +28,7 @@ async function main() {
         loginCookies,
         directUrls = [],
         loginUsername,
+        maxErrorCount,
         loginPassword,
         includeHasStories = false,
         cookiesPerConcurrency = 1,
@@ -50,7 +51,7 @@ async function main() {
 
     let maxConcurrency = 1000;
 
-    const loginCookiesStore = new LoginCookiesStore(loginCookies, cookiesPerConcurrency);
+    const loginCookiesStore = new LoginCookiesStore(loginCookies, cookiesPerConcurrency, maxErrorCount);
     if (loginCookiesStore.usingLogin()) {
         maxConcurrency = loginCookiesStore.concurrency();
         Apify.utils.log.warning(`Cookies were used, setting maxConcurrency to ${maxConcurrency}. Count of available cookies: ${loginCookiesStore.cookiesCount()}!`);
@@ -245,6 +246,11 @@ async function main() {
      */
     const handlePageFunction = async ({ page, puppeteerPool, request, response }) => {
         if (SCRAPE_TYPES.COOKIES === resultsType) return;
+
+        // this can randomly happen
+        if (!response) {
+            throw new Error('Response is undefined');
+        }
 
         if (response.status() === 404) {
             Apify.utils.log.error(`Page "${request.url}" does not exist.`);

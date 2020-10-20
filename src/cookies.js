@@ -9,7 +9,7 @@ const LoginCookiesStore = class CookiesStore {
     autoscaledPool = null;
     cookiesPerConcurrency = 1;
 
-    constructor(loginCookies, cookiesPerConcurrency = 1) {
+    constructor(loginCookies, cookiesPerConcurrency = 1, maxErrorCount = 3) {
         if (!loginCookies) return;
         if (!Array.isArray(loginCookies)) throw cookiesNotArray();
 
@@ -22,6 +22,7 @@ const LoginCookiesStore = class CookiesStore {
         }
         this.loginEnabled = true;
         this.cookiesPerConcurrency = cookiesPerConcurrency;
+        this.maxErrorCount = maxErrorCount;
     }
 
     buildCookie(loginCookies) {
@@ -75,7 +76,7 @@ const LoginCookiesStore = class CookiesStore {
         const cookieKey = this.browserCookies(browserPid);
         if (!this.cookiesStore[cookieKey]) return;
 
-        if (this.cookiesStore[cookieKey].errorCount > 1) {
+        if (this.cookiesStore[cookieKey].errorCount > this.maxErrorCount) {
             Apify.utils.log.warning(`Removing cookies with session cookie: ${cookieKey}`);
 
             this.invalidCookiesStore[cookieKey] = { ...this.cookiesStore[cookieKey] };
