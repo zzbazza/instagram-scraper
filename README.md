@@ -419,7 +419,6 @@ You can return fields to achieve three different things:
 }
 ```
 This example will add a new field `comment added`, change the `caption` field and remove `displayResourceUrls` field
-```
 
 ## Changelog
 This scraper is under active development, so check [CHANGELOG.md](https://github.com/gippy/instagram-scraper/blob/master/CHANGELOG.md) for new features and fixes.
