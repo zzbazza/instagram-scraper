@@ -121,31 +121,24 @@ const grapqlEndpoint = 'https://www.instagram.com/graphql/query/';
 
 /**
  * @param {Puppeteer.Page} page
- * @param {any} input
+ * @param {{ proxy: import("apify").ProxyConfigurationOptions | undefined; } | undefined} [input]
  */
 async function getGotParams(page, input) {
-    let proxyConfig = { ...input.proxy };
+    // It is necessary to create it here as well because passing it over is to ridiculous
+    const proxyConfiguration = await Apify.createProxyConfiguration(input.proxy);
 
-    await Apify.createProxyConfiguration(proxyConfig);
+    if (!proxyConfiguration) {
+        return;
+    }
+    const proxyUrl = proxyConfiguration.newUrl();
 
     const userAgent = await page.browser().userAgent();
 
-    let proxyUrl = null;
-    if (proxyConfig.useApifyProxy) {
-        proxyUrl = Apify.getApifyProxyUrl({
-            groups: proxyConfig.apifyProxyGroups || [],
-            session: proxyConfig.apifyProxySession || `insta_session_${Date.now()}`,
-        });
-    } else {
-        const randomUrlIndex = Math.round(Math.random() * proxyConfig.proxyUrls.length);
-        proxyUrl = proxyConfig.proxyUrls[randomUrlIndex];
-    }
-
     const proxyUrlParts = proxyUrl.match(/http:\/\/(.*)@(.*)\/?/);
-    if (!proxyUrlParts) return posts;
+    if (!proxyUrlParts) return;
 
     const proxyHost = proxyUrlParts[2].split(':');
-    proxyConfig = {
+    const proxyConfig = {
         hostname: proxyHost[0],
         proxyAuth: proxyUrlParts[1],
     };
