@@ -1,13 +1,17 @@
-### 2020-10-11 Bug fixes and some improvements
+### 2020-10-17 Bug fixes and some improvements
 
 #### Bug fixes
 - Hotfix for pages not loading properly
 - Accept cookies modal when it's shown
-- Fix unicode urls
+- Fix Unicode URLs
 - Fix scrolling with posts with body scroll
 - Remove legacy code
 - Some linting
-- Support for unicode hashtags and mentions
+- Support for Unicode hashtags and mentions
+
+#### New features
+- Added scraping of profile stories
+- Added option to pass a list of `loginCookies` to rotate logged-in accounts
 
 ### 2020-06-11 Big update with many fixes and new features
 
