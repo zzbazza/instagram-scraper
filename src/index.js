@@ -124,49 +124,50 @@ async function main() {
 
         // TODO: Refactor to use https://sdk.apify.com/docs/api/puppeteer#puppeteerblockrequestspage-options
         // Keep in mind it requires more manual setup than page.setRequestInterception
-        // await page.setRequestInterception(true);
+        await page.setRequestInterception(true);
 
-        // const isScrollPage = resultsType === SCRAPE_TYPES.POSTS || resultsType === SCRAPE_TYPES.COMMENTS;
-        // Apify.utils.log.debug(`Is scroll page: ${isScrollPage}`);
+        const isScrollPage = resultsType === SCRAPE_TYPES.POSTS || resultsType === SCRAPE_TYPES.COMMENTS;
+        Apify.utils.log.debug(`Is scroll page: ${isScrollPage}`);
 
-        // const { pageType } = request.userData;
-        // Apify.utils.log.info(`Opening page type: ${pageType} on ${request.url}`);
+        const { pageType } = request.userData;
+        Apify.utils.log.info(`Opening page type: ${pageType} on ${request.url}`);
 
-        // page.on('request', (req) => {
-        //     // We need to load some JS when we want to scroll
-        //     // Hashtag & place pages seems to require even more JS allowed but this needs more research
-        //     // Stories needs JS files
-        //     const isJSBundle = req.url().includes('instagram.com/static/bundles/');
-        //     const abortJSBundle = isScrollPage
-        //         ? (!ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => req.url().includes(urlMatch)) &&
-        //             ![PAGE_TYPES.HASHTAG, PAGE_TYPES.PLACE].includes(pageType))
-        //         : true
+        page.on('request', (req) => {
+            // We need to load some JS when we want to scroll
+            // Hashtag & place pages seems to require even more JS allowed but this needs more research
+            // Stories needs JS files
+            const isJSBundle = req.url().includes('instagram.com/static/bundles/');
+            const abortJSBundle = isScrollPage
+                ? (!ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => req.url().includes(urlMatch)) &&
+                    ![PAGE_TYPES.HASHTAG, PAGE_TYPES.PLACE].includes(pageType))
+                : true
 
-        //     if (
-        //         ABORT_RESOURCE_TYPES.includes(req.resourceType())
-        //         || ABORT_RESOURCE_URL_INCLUDES.some((urlMatch) => req.url().includes(urlMatch))
-        //         || (isJSBundle && abortJSBundle && pageType && !includeHasStories)
-        //     ) {
-        //         // Apify.utils.log.debug(`Aborting url: ${req.url()}`);
-        //         return req.abort();
-        //     }
-        //     // Apify.utils.log.debug(`Processing url: ${req.url()}`);
-        //     req.continue();
-        // });
-        await Apify.utils.puppeteer.blockRequests(page, {
-            urlPatterns: [
-                '.ico',
-                '.png',
-                '.mp4',
-                '.avi',
-                '.webp',
-                '.jpg',
-                '.jpeg',
-                '.gif',
-                '.svg',
-            ],
-            extraUrlPatterns: ABORT_RESOURCE_URL_INCLUDES,
+            if (
+                ABORT_RESOURCE_TYPES.includes(req.resourceType())
+                || ABORT_RESOURCE_URL_INCLUDES.some((urlMatch) => req.url().includes(urlMatch))
+                || (isJSBundle && abortJSBundle && pageType && !includeHasStories)
+            ) {
+                // Apify.utils.log.debug(`Aborting url: ${req.url()}`);
+                return req.abort();
+            }
+            // Apify.utils.log.debug(`Processing url: ${req.url()}`);
+            req.continue();
         });
+        // TODO this will increase network traffic even when it is not necessary.
+        // await Apify.utils.puppeteer.blockRequests(page, {
+        //     urlPatterns: [
+        //         '.ico',
+        //         '.png',
+        //         '.mp4',
+        //         '.avi',
+        //         '.webp',
+        //         '.jpg',
+        //         '.jpeg',
+        //         '.gif',
+        //         '.svg',
+        //     ],
+        //     extraUrlPatterns: ABORT_RESOURCE_URL_INCLUDES,
+        // });
 
         page.on('response', async (response) => {
             const responseUrl = response.url();
