@@ -1,6 +1,8 @@
 const Apify = require('apify');
 const { utils: { requestAsBrowser } } = Apify;
 const { storiesNotLoaded } = require('./errors');
+const { HEADERS } = require('./consts');
+const { loadXHR } = require('./helpers');
 
 /**
  * Takes type of page and data loaded through GraphQL and outputs
@@ -39,49 +41,22 @@ async function handleStoriesGraphQLResponse(response) {
  * @param {Request} request - request object of main page
  * @param {PuppeteerPage} page - page object
  * @param {Object} data - data object loaded from init page
- * @param {CookiesStore} loginCookiesStore - cookieStore object
+ * @param {String} proxyUrl - proxy url
  * @returns {Promise<void>}
  */
-const scrapeStories = async (request, page, data, loginCookiesStore) => {
-    const browser = await page.browser();
+const scrapeStories = async ({ request, page, data, proxyUrl }) => {
     if (!data.entry_data.StoriesPage) {
         Apify.utils.log.warning(`No stories for ${request.url}`);
         return;
     }
     const reelId = data.entry_data.StoriesPage[0].user.id;
     const url = `https://www.instagram.com/graphql/query/?query_hash=c9c56db64beb4c9dea2d17740d0259d9&variables=%7B%22reel_ids%22%3A%5B%22${reelId}%22%5D%2C%22tag_names%22%3A%5B%5D%2C%22location_ids%22%3A%5B%5D%2C%22highlight_reel_ids%22%3A%5B%5D%2C%22precomposed_overlay%22%3Afalse%2C%22show_story_viewer_list%22%3Atrue%2C%22story_viewer_fetch_count%22%3A50%2C%22story_viewer_cursor%22%3A%22%22%2C%22stories_video_dash_manifest%22%3Afalse%7D`;
-    const cookies = await page.cookies();
-    let serializedCookies = '';
-    for (const cookie of cookies) {
-        serializedCookies += `${cookie.name}=${cookie.value}; `;
-    }
-    const userAgent = await page.evaluate(() => navigator.userAgent);
-    const headers = {
-        referer: request.url,
-        "x-csrftoken": data.config.csrf_token,
-        cookie: serializedCookies,
-        "access-control-expose-headers": 'X-IG-Set-WWW-Claim',
-        accept: '*/*',
-        'accept-encoding': 'gzip, deflate, br',
-        'sec-fetch-dest': 'empty',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-site': 'same-origin',
-        'x-ig-app-id': '936619743392459',
-        'x-ig-www-claim': 'hmac.AR1-yiYTI0KAovABgcl_mYe5lSWZC3Jtjc8gMfXTp8Z2t6gQ',
-        'x-requested-with': 'XMLHttpRequest',
-        'user-agent': userAgent,
-    }
+    const csrf_token = data.config.csrf_token;
 
-    const proxyUrl = loginCookiesStore.proxyUrl(browser.process().pid);
-    const res = await requestAsBrowser({
-        url,
-        timeoutSecs: 30,
-        proxyUrl,
-        headers,
-    });
+    const response = await loadXHR({ request, page, url, csrf_token, proxyUrl });
 
-    if (res.statusCode === 200) {
-        await handleStoriesGraphQLResponse(res);
+    if (response.statusCode === 200) {
+        await handleStoriesGraphQLResponse(response);
     } else {
         throw storiesNotLoaded(reelId);
     }

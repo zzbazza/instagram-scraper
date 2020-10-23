@@ -68,5 +68,16 @@ module.exports = {
         'es6/en',
         'es6/Vendor',
         'es6/ActivityFeedBox'
-    ]
+    ],
+    HEADERS: {
+        "access-control-expose-headers": 'X-IG-Set-WWW-Claim',
+        accept: '*/*',
+        'accept-encoding': 'gzip, deflate, br',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'x-ig-app-id': '936619743392459',
+        'x-ig-www-claim': 'hmac.AR1-yiYTI0KAovABgcl_mYe5lSWZC3Jtjc8gMfXTp8Z2t6gQ',
+        'x-requested-with': 'XMLHttpRequest',
+    }
 };

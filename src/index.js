@@ -4,7 +4,7 @@ const _ = require('underscore');
 const { scrapePosts, handlePostsGraphQLResponse, scrapePost } = require('./posts');
 const { scrapeComments, handleCommentsGraphQLResponse } = require('./comments');
 const { scrapeStories } = require('./stories');
-const { scrapeDetails, handleDetailsGraphQLResponse } = require('./details');
+const { scrapeDetails } = require('./details');
 const { searchUrls } = require('./search');
 const { getItemSpec, parseExtendOutputFunction, getPageTypeFromUrl } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORT_RESOURCE_TYPES, ABORT_RESOURCE_URL_INCLUDES, ABORT_RESOURCE_URL_DOWNLOAD_JS, SCRAPE_TYPES, PAGE_TYPES } = require('./consts');
@@ -145,7 +145,7 @@ async function main() {
             if (
                 ABORT_RESOURCE_TYPES.includes(req.resourceType())
                 || ABORT_RESOURCE_URL_INCLUDES.some((urlMatch) => req.url().includes(urlMatch))
-                || (isJSBundle && abortJSBundle && pageType && !includeHasStories)
+                || (isJSBundle && abortJSBundle && pageType)
             ) {
                 // Apify.utils.log.debug(`Aborting url: ${req.url()}`);
                 return req.abort();
@@ -184,8 +184,6 @@ async function main() {
                         return handlePostsGraphQLResponse({ page, response, scrollingState });
                     case SCRAPE_TYPES.COMMENTS:
                         return handleCommentsGraphQLResponse({ page, response, scrollingState });
-                    case SCRAPE_TYPES.DETAILS:
-                        return handleDetailsGraphQLResponse({ page, response });
                 }
             } catch (e) {
                 Apify.utils.log.error(`Error happened while processing response: ${e.message}`);
@@ -239,8 +237,9 @@ async function main() {
     /**
      * @type {Apify.PuppeteerHandlePage}
      */
-    const handlePageFunction = async ({ page, puppeteerPool, request, response }) => {
+    const handlePageFunction = async ({ page, puppeteerPool, request, response, session }) => {
         if (SCRAPE_TYPES.COOKIES === resultsType) return;
+        const proxyUrl = proxyConfiguration ? proxyConfiguration.newUrl(session.id) : undefined;
 
         // this can randomly happen
         if (!response) {
@@ -302,14 +301,15 @@ async function main() {
                         input,
                         request,
                         itemSpec,
-                        entryData,
+                        data,
                         page,
                         proxy,
                         userResult,
                         includeHasStories,
+                        proxyUrl,
                     });
                 case SCRAPE_TYPES.STORIES:
-                    return scrapeStories(request, page, data, loginCookiesStore);
+                    return scrapeStories({ request, page, data, proxyUrl });
                 default:
                     throw new Error('Not supported');
             }
@@ -362,7 +362,6 @@ async function main() {
         maxConcurrency,
         handlePageTimeoutSecs: 300 * 60, // Ex: 5 hours to crawl thousands of comments
         handlePageFunction,
-
         // If request failed 4 times then this function is executed.
         handleFailedRequestFunction: async ({ request }) => {
             Apify.utils.log.error(`${request.url}: Request ${request.url} failed ${maxRequestRetries + 1} times, not retrying any more`);
