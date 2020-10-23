@@ -14,4 +14,5 @@ module.exports = {
     credentialsRequired: () => new Error('You need to provide login credentials.'),
     cookiesNotArray: () => new Error('Login cookies has to be either Array of cookies or Array of Arrays of cookies.'),
     xhrNotLoaded: () => new Error('Required XHR request not loaded.'),
+    storiesNotLoaded: (reelId) => `Stories XHR for reelId: ${reelId}, not loaded correctly. Retrying.`,
 };

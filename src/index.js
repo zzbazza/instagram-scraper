@@ -3,7 +3,7 @@ const _ = require('underscore');
 
 const { scrapePosts, handlePostsGraphQLResponse, scrapePost } = require('./posts');
 const { scrapeComments, handleCommentsGraphQLResponse } = require('./comments');
-const { handleStoriesGraphQLResponse } = require('./stories');
+const { scrapeStories } = require('./stories');
 const { scrapeDetails, handleDetailsGraphQLResponse } = require('./details');
 const { searchUrls } = require('./search');
 const { getItemSpec, parseExtendOutputFunction, getPageTypeFromUrl } = require('./helpers');
@@ -115,6 +115,9 @@ async function main() {
             const cookies = await page.cookies();
             if (SCRAPE_TYPES.COOKIES === resultsType) {
                 await Apify.pushData(cookies);
+                // for local usage to get cookies in one array
+                // const keyval = await Apify.openKeyValueStore();
+                // await keyval.setValue('cookies', cookies);
                 return null;
             }
         }
@@ -142,7 +145,7 @@ async function main() {
         //     if (
         //         ABORT_RESOURCE_TYPES.includes(req.resourceType())
         //         || ABORT_RESOURCE_URL_INCLUDES.some((urlMatch) => req.url().includes(urlMatch))
-        //         || (isJSBundle && abortJSBundle && pageType !== PAGE_TYPES.STORY && !includeHasStories)
+        //         || (isJSBundle && abortJSBundle && pageType && !includeHasStories)
         //     ) {
         //         // Apify.utils.log.debug(`Aborting url: ${req.url()}`);
         //         return req.abort();
@@ -180,21 +183,12 @@ async function main() {
                         return handlePostsGraphQLResponse({ page, response, scrollingState });
                     case SCRAPE_TYPES.COMMENTS:
                         return handleCommentsGraphQLResponse({ page, response, scrollingState });
-                    case SCRAPE_TYPES.STORIES:
-                        return handleStoriesGraphQLResponse({ page, response });
                     case SCRAPE_TYPES.DETAILS:
                         return handleDetailsGraphQLResponse({ page, response });
                 }
             } catch (e) {
                 Apify.utils.log.error(`Error happened while processing response: ${e.message}`);
                 console.log(e.stack);
-            }
-        });
-
-        page.on('requestfailed', (request) => {
-            // Story data are not loaded if js fails
-            if (ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => request.url().includes(urlMatch) && resultsType === SCRAPE_TYPES.STORIES)) {
-                page.storiesLoaded = false;
             }
         });
 
@@ -295,15 +289,6 @@ async function main() {
             _.extend(result, userResult);
 
             await Apify.pushData(result);
-        } else if (resultsType === SCRAPE_TYPES.STORIES) {
-            page.itemSpec = itemSpec;
-            // Wait for Data scraped from graphQL
-            let sleepLength = 0;
-            while (typeof page.storiesLoaded === 'undefined' && sleepLength < 10000) {
-                await sleep(100);
-                sleepLength += 100;
-            }
-            if (!page.storiesLoaded) throw new Error('JS needed for stories does not loaded properly, retrying...');
         } else {
             page.itemSpec = itemSpec;
             switch (resultsType) {
@@ -322,6 +307,8 @@ async function main() {
                         userResult,
                         includeHasStories,
                     });
+                case SCRAPE_TYPES.STORIES:
+                    return scrapeStories(request, page, data, loginCookiesStore);
                 default:
                     throw new Error('Not supported');
             }
@@ -332,11 +319,14 @@ async function main() {
      * @type {Apify.LaunchPuppeteerFunction}
      */
     const launchPuppeteerFunction = async (options) => {
+        const proxyUrl = proxyConfiguration ? proxyConfiguration.newUrl() : undefined;
         const browser = await Apify.launchPuppeteer({
             ...options,
+            proxyUrl,
+            devtools: !Apify.isAtHome(),
         });
 
-        const cookies = loginCookiesStore.randomCookie(browser.process().pid);
+        const cookies = loginCookiesStore.randomCookie(browser.process().pid, proxyUrl);
         if (cookies && cookies.length) {
             const page = await browser.newPage();
             await page.setCookie(...cookies);
