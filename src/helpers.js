@@ -6,9 +6,9 @@ const safeEval = require('safe-eval');
 const { URLSearchParams } = require('url');
 const errors = require('./errors');
 const { expandOwnerDetails } = require('./user-details');
-const { PAGE_TYPES, GRAPHQL_ENDPOINT, LOG_TYPES, PAGE_TYPE_URL_REGEXES } = require('./consts');
+const { PAGE_TYPES, GRAPHQL_ENDPOINT, LOG_TYPES, PAGE_TYPE_URL_REGEXES, HEADERS } = require('./consts');
 
-const { sleep } = Apify.utils;
+const { sleep, requestAsBrowser } = Apify.utils;
 
 const getPageTypeFromUrl = (url) => {
     for (const [pageType, regex] of Object.entries(PAGE_TYPE_URL_REGEXES)) {
@@ -84,12 +84,18 @@ const getItemSpec = (entryData) => {
  */
 const getLogLabel = (pageData) => {
     switch (pageData.pageType) {
-        case PAGE_TYPES.PLACE: return `Place "${pageData.locationName}"`;
-        case PAGE_TYPES.PROFILE: return `User "${pageData.userUsername}"`;
-        case PAGE_TYPES.HASHTAG: return `Tag "${pageData.tagName}"`;
-        case PAGE_TYPES.POST: return `Post "${pageData.id}"`;
-        case PAGE_TYPES.STORY: return 'Story';
-        default: throw new Error('Not supported');
+        case PAGE_TYPES.PLACE:
+            return `Place "${pageData.locationName}"`;
+        case PAGE_TYPES.PROFILE:
+            return `User "${pageData.userUsername}"`;
+        case PAGE_TYPES.HASHTAG:
+            return `Tag "${pageData.tagName}"`;
+        case PAGE_TYPES.POST:
+            return `Post "${pageData.id}"`;
+        case PAGE_TYPES.STORY:
+            return 'Story';
+        default:
+            throw new Error('Not supported');
     }
 };
 
@@ -99,11 +105,16 @@ const getLogLabel = (pageData) => {
  */
 const getCheckedVariable = (pageType) => {
     switch (pageType) {
-        case PAGE_TYPES.PLACE: return '%22id%22';
-        case PAGE_TYPES.PROFILE: return '%22id%22';
-        case PAGE_TYPES.HASHTAG: return '%22tag_name%22';
-        case PAGE_TYPES.POST: return '%22shortcode%22';
-        default: throw new Error('Not supported');
+        case PAGE_TYPES.PLACE:
+            return '%22id%22';
+        case PAGE_TYPES.PROFILE:
+            return '%22id%22';
+        case PAGE_TYPES.HASHTAG:
+            return '%22tag_name%22';
+        case PAGE_TYPES.POST:
+            return '%22shortcode%22';
+        default:
+            throw new Error('Not supported');
     }
 };
 
@@ -152,7 +163,10 @@ async function getGotParams(page, input) {
     const cookieJar = new CookieJar();
     cookies.forEach((cookie) => {
         if (cookie.name === 'urlgen') return;
-        cookieJar.setCookieSync(`${cookie.name}=${cookie.value}`, 'https://www.instagram.com/', { http: true, secure: true });
+        cookieJar.setCookieSync(`${cookie.name}=${cookie.value}`, 'https://www.instagram.com/', {
+            http: true,
+            secure: true
+        });
     });
 
     return {
@@ -417,7 +431,7 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
     if (!response) {
         log(itemSpec, 'Didn\'t receive a valid response in the current scroll, scrolling again...', LOG_TYPES.WARNING);
     } else {
-    // if (scrolled[1] || clicked[1]) {
+        // if (scrolled[1] || clicked[1]) {
         try {
             // const response = await responsePromise;
             // if (!response) {
@@ -528,6 +542,39 @@ const finiteScroll = async (context) => {
     }
 };
 
+/**
+ * Load data from XHR request using current page cookies and headers
+ * @param {Request} request - request as referer
+ * @param {PuppeteerPage} page - current page object
+ * @param {String} url - xhr url
+ * @param {String|null} proxyUrl - url of current proxy
+ * @param {String} csrf_token - used in headers
+ * @returns {Promise<Response>}
+ */
+const loadXHR = async ({ request, page, url, proxyUrl, csrf_token }) => {
+    const cookies = await page.cookies();
+    let serializedCookies = '';
+    for (const cookie of cookies) {
+        serializedCookies += `${cookie.name}=${cookie.value}; `;
+    }
+    const userAgent = await page.evaluate(() => navigator.userAgent);
+    const headers = {
+        referer: request.url,
+        "x-csrftoken": csrf_token,
+        cookie: serializedCookies,
+        'user-agent': userAgent,
+        ...HEADERS
+    }
+
+    const res = await requestAsBrowser({
+        url,
+        timeoutSecs: 30,
+        proxyUrl,
+        headers,
+    });
+    return res;
+}
+
 module.exports = {
     getPageTypeFromUrl,
     getItemSpec,
@@ -540,4 +587,5 @@ module.exports = {
     filterPushedItemsAndUpdateState,
     finiteScroll,
     shouldContinueScrolling,
+    loadXHR,
 };
