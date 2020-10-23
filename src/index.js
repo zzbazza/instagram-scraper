@@ -327,7 +327,7 @@ async function main() {
             devtools: !Apify.isAtHome(),
         });
 
-        const cookies = loginCookiesStore.randomCookie(browser.process().pid, proxyUrl);
+        const cookies = loginCookiesStore.randomCookie(browser.process().pid);
         if (cookies && cookies.length) {
             const page = await browser.newPage();
             await page.setCookie(...cookies);

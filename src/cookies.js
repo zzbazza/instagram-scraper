@@ -30,7 +30,6 @@ const LoginCookiesStore = class CookiesStore {
         this.cookiesStore[key] = {};
         this.cookiesStore[key]['cookies'] = loginCookies;
         this.cookiesStore[key].browserPid = null;
-        this.cookiesStore[key].proxyUrl = null;
         this.cookiesStore[key].errorCount = 0;
     }
 
@@ -43,7 +42,7 @@ const LoginCookiesStore = class CookiesStore {
         return Math.floor(this.cookiesCount() / this.cookiesPerConcurrency);
     }
 
-    randomCookie(browserPid = null, proxyUrl = null) {
+    randomCookie(browserPid = null) {
         if (!this.usingLogin()) return null;
         const keys = []
         for (const key in this.cookiesStore) {
@@ -61,14 +60,12 @@ const LoginCookiesStore = class CookiesStore {
 
         const cookieKey = keys[(Math.floor(Math.random() * keys.length))];
         this.cookiesStore[cookieKey].browserPid = browserPid;
-        this.cookiesStore[cookieKey].proxyUrl = proxyUrl;
         Apify.utils.log.debug(`Selected cookies session: ${cookieKey}`);
         return this.cookiesStore[cookieKey]['cookies'];
     }
 
     releaseCookie(cookieKey) {
         this.cookiesStore[cookieKey].browserPid = null;
-        this.cookiesStore[cookieKey].proxyUrl = null;
     }
 
     cookiesCount() {
@@ -105,11 +102,6 @@ const LoginCookiesStore = class CookiesStore {
             if (this.cookiesStore[key].browserPid === browserPid)
                 return key;
         }
-    }
-
-    proxyUrl(browserPid) {
-        const cookieKey = this.browserCookies(browserPid);
-        return this.cookiesStore[cookieKey].proxyUrl;
     }
 
     invalidCookies() {
