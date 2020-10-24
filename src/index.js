@@ -47,7 +47,6 @@ async function main() {
     const persistState = async () => {
         await Apify.setValue('STATE-SCROLLING', scrollingState);
     };
-    setInterval(persistState, 5000);
     Apify.events.on('persistState', persistState);
 
     let maxConcurrency = input.maxConcurrency || 1000;

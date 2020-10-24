@@ -394,35 +394,39 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
             continue; // eslint-disable-line no-continue
         }
         const [button] = elements;
-        let clickPromise = Promise.resolve();
 
         try {
-            clickPromise = button.click();
-        } catch (e) {
-            // Node is either not visible or not an HTMLElement
-            continue; // eslint-disable-line no-continue
-        }
+            clicked = await Promise.all([
+                button.click(),
+                page.waitForRequest(
+                    (request) => {
+                        const requestUrl = request.url();
+                        return requestUrl.startsWith(GRAPHQL_ENDPOINT)
+                            && requestUrl.includes(checkedVariable)
+                            && requestUrl.includes('%22first%22');
+                    },
+                    {
+                        timeout: 1000,
+                    },
+                ).catch(() => null),
+            ]);
 
-        clicked = await Promise.all([
-            clickPromise,
-            page.waitForRequest(
-                (request) => {
-                    const requestUrl = request.url();
-                    return requestUrl.startsWith(GRAPHQL_ENDPOINT)
-                        && requestUrl.includes(checkedVariable)
-                        && requestUrl.includes('%22first%22');
-                },
-                {
-                    timeout: 1000,
-                },
-            ).catch(() => null),
-        ]);
-        if (clicked[1]) {
             if ((await page.$$('[role="dialog"]')).length) {
                 // login popup appeared, abort
                 throw new Error('Login popup appeared, retrying...');
             }
-            break;
+
+            if (clicked[1]) break;
+        } catch (e) {
+            Apify.utils.log.debug('loadMore error', { error: e.message, stack: e.stack });
+
+            if (e.message.includes('Login')) {
+                throw e;
+            }
+
+            // "Node is either not visible or not an HTMLElement" from button.click(), would propagate and
+            // break the whole recursion needlessly
+            continue; // eslint-disable-line no-continue
         }
     }
 
