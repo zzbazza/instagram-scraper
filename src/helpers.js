@@ -4,6 +4,7 @@ const { CookieJar } = require('tough-cookie');
 const got = require('got');
 const safeEval = require('safe-eval');
 const { URLSearchParams } = require('url');
+const Puppeteer = require('puppeteer'); // eslint-disable-line no-unused-vars
 const errors = require('./errors');
 const { expandOwnerDetails } = require('./user-details');
 const { PAGE_TYPES, GRAPHQL_ENDPOINT, LOG_TYPES, PAGE_TYPE_URL_REGEXES, HEADERS } = require('./consts');
@@ -165,7 +166,7 @@ async function getGotParams(page, input) {
         if (cookie.name === 'urlgen') return;
         cookieJar.setCookieSync(`${cookie.name}=${cookie.value}`, 'https://www.instagram.com/', {
             http: true,
-            secure: true
+            secure: true,
         });
     });
 
@@ -355,6 +356,14 @@ const shouldContinueScrolling = ({ scrollingState, itemSpec, oldItemCount, type 
     return shouldGoNextGeneric;
 };
 
+/**
+ * @param {{
+ *   itemSpec: any,
+ *   page: Puppeteer.Page,
+ *   retry?: number,
+ *   type: 'posts' | 'comments'
+ * }} params
+ */
 const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
     // console.log('Starting load more fn')
     await page.keyboard.press('PageUp');
@@ -366,7 +375,7 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
                 && responseUrl.includes(checkedVariable)
                 && responseUrl.includes('%22first%22');
         },
-        { timeout: 100000 },
+        { timeout: 30000 },
     ).catch(() => null);
 
     // comments scroll up with button
@@ -382,25 +391,43 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
         }
 
         if (elements.length === 0) {
-            continue;
+            continue; // eslint-disable-line no-continue
         }
         const [button] = elements;
 
-        clicked = await Promise.all([
-            button.click(),
-            page.waitForRequest(
-                (request) => {
-                    const requestUrl = request.url();
-                    return requestUrl.startsWith(GRAPHQL_ENDPOINT)
-                        && requestUrl.includes(checkedVariable)
-                        && requestUrl.includes('%22first%22');
-                },
-                {
-                    timeout: 1000,
-                },
-            ).catch(() => null),
-        ]);
-        if (clicked[1]) break;
+        try {
+            clicked = await Promise.all([
+                button.click(),
+                page.waitForRequest(
+                    (request) => {
+                        const requestUrl = request.url();
+                        return requestUrl.startsWith(GRAPHQL_ENDPOINT)
+                            && requestUrl.includes(checkedVariable)
+                            && requestUrl.includes('%22first%22');
+                    },
+                    {
+                        timeout: 1000,
+                    },
+                ).catch(() => null),
+            ]);
+
+            if ((await page.$$('[role="dialog"]')).length) {
+                // login popup appeared, abort
+                throw new Error('Login popup appeared, retrying...');
+            }
+
+            if (clicked[1]) break;
+        } catch (e) {
+            Apify.utils.log.debug('loadMore error', { error: e.message, stack: e.stack });
+
+            if (e.message.includes('Login')) {
+                throw e;
+            }
+
+            // "Node is either not visible or not an HTMLElement" from button.click(), would propagate and
+            // break the whole recursion needlessly
+            continue; // eslint-disable-line no-continue
+        }
     }
 
     // posts scroll down
@@ -409,7 +436,7 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
         for (let i = 0; i < 10; i++) {
             scrolled = await Promise.all([
                 // eslint-disable-next-line no-restricted-globals
-                page.evaluate(() => scrollBy(0, 9999999)),
+                page.evaluate(() => window.scrollBy(0, 9999999)),
                 page.waitForRequest(
                     (request) => {
                         const requestUrl = request.url();
@@ -427,6 +454,12 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
     }
 
     let data = null;
+
+    // the [+] button is removed from page when no more comments are loading
+    if (type === 'comments' && !clicked.length && retry > 0) {
+        return { data };
+    }
+
     const response = await responsePromise;
     if (!response) {
         log(itemSpec, 'Didn\'t receive a valid response in the current scroll, scrolling again...', LOG_TYPES.WARNING);
@@ -437,7 +470,7 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
             // if (!response) {
             //    log(itemSpec, `Didn't receive a valid response in the current scroll, scrolling more...`, LOG_TYPES.WARNING);
             // } else {
-            const status = await response.status();
+            const status = response.status();
 
             if (status === 429) {
                 return { rateLimited: true };
@@ -465,15 +498,18 @@ const loadMore = async ({ itemSpec, page, retry = 0, type }) => {
         }
     }
 
+    if (type === 'comments') {
+        // delete nodes to make DOM less bloated
+        await page.evaluate(() => {
+            document.querySelectorAll('.EtaWk > ul > ul').forEach((s) => s.remove());
+        });
+    }
+
     if (!data && retry < 10 && (scrolled[1] || retry < 5)) {
         // We scroll the other direction than usual
-        let scrollYAxis;
         if (type === 'posts') {
-            scrollYAxis = -1000;
-        } else if (type === 'comments') {
-            scrollYAxis = 1000;
+            await page.evaluate(() => window.scrollBy(0, -1000));
         }
-        await page.evaluate((scrollYAxis) => window.scrollBy(0, scrollYAxis), scrollYAxis);
         const retryDelay = retry ? (retry + 1) * retry * 1000 : (retry + 1) * 1000;
         log(itemSpec, `Retry scroll after ${retryDelay / 1000} seconds`);
         await sleep(retryDelay);
@@ -506,10 +542,12 @@ const finiteScroll = async (context) => {
     if (data) {
         const { hasNextPage } = getItemsFromGraphQLFn({ data, pageType: itemSpec.pageType });
         if (!hasNextPage) {
-            log(itemSpec, 'Cannot find new page of scrolling, storing last page dump to KV store', LOG_TYPES.WARNING);
-            await Apify.setValue(`LAST-PAGE-DUMP-${itemSpec.id}`, data);
+            // log(itemSpec, 'Cannot find new page of scrolling, storing last page dump to KV store', LOG_TYPES.WARNING);
+            // await Apify.setValue(`LAST-PAGE-DUMP-${itemSpec.id}`, data);
             // We have to do these retires because the browser sometimes hang on, should be fixable with something else though
-            await puppeteerPool.retire(page.browser());
+            // await puppeteerPool.retire(page.browser());
+
+            // this is actually expected, the total count usually isn't the amount of actual loaded comments/posts
             return;
         }
     }
@@ -537,15 +575,13 @@ const finiteScroll = async (context) => {
 
     if (doContinue) {
         await finiteScroll(context);
-    } else {
-        await puppeteerPool.retire(page.browser());
     }
 };
 
 /**
  * Load data from XHR request using current page cookies and headers
  * @param {Request} request - request as referer
- * @param {PuppeteerPage} page - current page object
+ * @param {Puppeteer.Page} page - current page object
  * @param {String} url - xhr url
  * @param {String|null} proxyUrl - url of current proxy
  * @param {String} csrf_token - used in headers
@@ -560,11 +596,11 @@ const loadXHR = async ({ request, page, url, proxyUrl, csrf_token }) => {
     const userAgent = await page.evaluate(() => navigator.userAgent);
     const headers = {
         referer: request.url,
-        "x-csrftoken": csrf_token,
+        'x-csrftoken': csrf_token,
         cookie: serializedCookies,
         'user-agent': userAgent,
-        ...HEADERS
-    }
+        ...HEADERS,
+    };
 
     const res = await requestAsBrowser({
         url,
@@ -573,7 +609,7 @@ const loadXHR = async ({ request, page, url, proxyUrl, csrf_token }) => {
         headers,
     });
     return res;
-}
+};
 
 module.exports = {
     getPageTypeFromUrl,
