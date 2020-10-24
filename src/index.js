@@ -30,6 +30,7 @@ async function main() {
         loginUsername,
         maxErrorCount,
         loginPassword,
+        useStealth = false,
         includeHasStories = false,
         cookiesPerConcurrency = 1,
     } = input;
@@ -49,7 +50,7 @@ async function main() {
     setInterval(persistState, 5000);
     Apify.events.on('persistState', persistState);
 
-    let maxConcurrency = 1000;
+    let maxConcurrency = input.maxConcurrency || 1000;
 
     const loginCookiesStore = new LoginCookiesStore(loginCookies, cookiesPerConcurrency, maxErrorCount);
     if (loginCookiesStore.usingLogin()) {
@@ -102,11 +103,13 @@ async function main() {
     }
 
     const requestList = await Apify.openRequestList('request-list', requestListSources);
+    // keeps JS and CSS in a memory cache, since request interception disables cache
+    const memoryCache = new Map();
 
     /**
      * @type {Apify.PuppeteerGoto}
      */
-    const gotoFunction = async ({ request, page, puppeteerPool, autoscaledPool }) => {
+    const gotoFunction = async ({ request, page, puppeteerPool, autoscaledPool, session }) => {
         loginCookiesStore.setPuppeteerPool(puppeteerPool); // get puppeteerPool instance
         loginCookiesStore.setAutoscaledPool(autoscaledPool); // get autoscaledPool instance
         await page.setBypassCSP(true);
@@ -122,55 +125,64 @@ async function main() {
             }
         }
 
-        // TODO: Refactor to use https://sdk.apify.com/docs/api/puppeteer#puppeteerblockrequestspage-options
-        // Keep in mind it requires more manual setup than page.setRequestInterception
-        await page.setRequestInterception(true);
+        await Apify.utils.puppeteer.blockRequests(page, {
+            urlPatterns: [
+                '.ico',
+                '.png',
+                '.mp4',
+                '.avi',
+                '.webp',
+                '.jpg',
+                '.jpeg',
+                '.gif',
+                '.svg',
+            ],
+            extraUrlPatterns: ABORT_RESOURCE_URL_INCLUDES,
+        });
 
-        const isScrollPage = resultsType === SCRAPE_TYPES.POSTS || resultsType === SCRAPE_TYPES.COMMENTS;
-        Apify.utils.log.debug(`Is scroll page: ${isScrollPage}`);
+        // Request interception disables chromium cache, implement in-memory cache for
+        // resources, will save literal MBs of traffic https://help.apify.com/en/articles/2424032-cache-responses-in-puppeteer
+        await page.setRequestInterception(true);
 
         const { pageType } = request.userData;
         Apify.utils.log.info(`Opening page type: ${pageType} on ${request.url}`);
 
-        page.on('request', (req) => {
+        page.on('request', async (req) => {
             // We need to load some JS when we want to scroll
             // Hashtag & place pages seems to require even more JS allowed but this needs more research
             // Stories needs JS files
-            const isJSBundle = req.url().includes('instagram.com/static/bundles/');
-            const abortJSBundle = isScrollPage
-                ? (!ABORT_RESOURCE_URL_DOWNLOAD_JS.some((urlMatch) => req.url().includes(urlMatch)) &&
-                    ![PAGE_TYPES.HASHTAG, PAGE_TYPES.PLACE].includes(pageType))
-                : true
+            const isCacheable = req.url().includes('instagram.com/static/bundles');
 
-            if (
-                ABORT_RESOURCE_TYPES.includes(req.resourceType())
-                || ABORT_RESOURCE_URL_INCLUDES.some((urlMatch) => req.url().includes(urlMatch))
-                || (isJSBundle && abortJSBundle && pageType)
-            ) {
+            if (ABORT_RESOURCE_TYPES.includes(req.resourceType())) {
                 // Apify.utils.log.debug(`Aborting url: ${req.url()}`);
-                return req.abort();
+                await req.abort();
+                return;
             }
+
+            if (isCacheable) {
+                const url = req.url();
+                if (memoryCache.has(url)) {
+                    Apify.utils.log.debug('Has cache', { url });
+                    await req.respond(memoryCache.get(url));
+                    return;
+                }
+            }
+
             // Apify.utils.log.debug(`Processing url: ${req.url()}`);
-            req.continue();
+            await req.continue();
         });
-        // TODO this will increase network traffic even when it is not necessary.
-        // await Apify.utils.puppeteer.blockRequests(page, {
-        //     urlPatterns: [
-        //         '.ico',
-        //         '.png',
-        //         '.mp4',
-        //         '.avi',
-        //         '.webp',
-        //         '.jpg',
-        //         '.jpeg',
-        //         '.gif',
-        //         '.svg',
-        //     ],
-        //     extraUrlPatterns: ABORT_RESOURCE_URL_INCLUDES,
-        // });
 
         page.on('response', async (response) => {
             const responseUrl = response.url();
+            const isCacheable = responseUrl.includes('instagram.com/static/bundles');
+
+            if (isCacheable && !memoryCache.has(responseUrl)) {
+                Apify.utils.log.debug('Adding cache', { responseUrl });
+                memoryCache.set(responseUrl, {
+                    headers: response.headers(),
+                    body: await response.buffer(),
+                });
+            }
 
             // Skip non graphql responses
             if (!responseUrl.startsWith(GRAPHQL_ENDPOINT)) return;
@@ -195,7 +207,7 @@ async function main() {
         // otherwise it will hang forever
         await page.evaluateOnNewDocument((pageType) => {
             window.addEventListener('load', () => {
-                document.body.style.overflow = pageType === 'post' ? 'hidden' : '';
+                document.body.style.overflow = pageType === 'post' || pageType === 'comments' ? 'hidden' : '';
                 const cookieModalButton = document.querySelectorAll('[role="presentation"] [role="dialog"] button:first-of-type');
 
                 if (cookieModalButton.length) {
@@ -204,10 +216,18 @@ async function main() {
             });
         }, request.userData.pageType);
 
-        const response = await page.goto(request.url, {
-            // itemSpec timeouts
-            timeout: pageTimeout * 1000,
-        });
+        const response = await (async () => {
+            try {
+                return await page.goto(request.url, {
+                    // itemSpec timeouts
+                    timeout: pageTimeout * 1000,
+                });
+            } catch (e) {
+                // this usually means that the proxy 100% failing and will keep trying until failing all retries
+                session.retire();
+                throw new Error('Page isn\'t loading, trying another proxy');
+            }
+        })();
 
         if (loginCookiesStore.usingLogin()) {
             try {
@@ -320,10 +340,16 @@ async function main() {
      * @type {Apify.LaunchPuppeteerFunction}
      */
     const launchPuppeteerFunction = async (options) => {
-        const proxyUrl = proxyConfiguration ? proxyConfiguration.newUrl() : undefined;
         const browser = await Apify.launchPuppeteer({
             ...options,
-            proxyUrl,
+            stealth: useStealth,
+            useChrome: Apify.isAtHome(),
+            ignoreHTTPSErrors: true,
+            args: [
+                '--enable-features=NetworkService',
+                '--ignore-certificate-errors',
+                '--disable-blink-features=AutomationControlled', // removes webdriver from window.navigator
+            ],
             devtools: !Apify.isAtHome(),
         });
 
@@ -344,17 +370,8 @@ async function main() {
         gotoFunction,
         maxRequestRetries,
         puppeteerPoolOptions: {
+            useIncognitoPages: true,
             maxOpenPagesPerInstance: 1,
-            retireInstanceAfterRequestCount: 30,
-        },
-        launchPuppeteerOptions: {
-            stealth: true,
-            useChrome: Apify.isAtHome(),
-            stealthOptions: {
-                addLanguage: false,
-            },
-            ignoreHTTPSErrors: true,
-            args: ['--enable-features=NetworkService', '--ignore-certificate-errors'],
         },
         useSessionPool: true,
         proxyConfiguration: proxyConfiguration || undefined,

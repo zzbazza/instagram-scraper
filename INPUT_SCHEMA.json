@@ -153,6 +153,16 @@
             "sectionCaption": "Experimental features",
             "sectionDescription": "Features in this section are highly experimental, can result in a ban of the account if logged in and might cause the solution to fail."
         },
+        "useStealth": {
+
+        },
+        "maxConcurrency": {
+            "title": "Max Concurrency",
+            "type": "integer",
+            "description": "Max number of allowed instances running in parallel. More instances need more memory!",
+            "editor": "number",
+            "default": 1000
+        },
         "includeHasStories": {
             "title": "Include Has Stories",
             "type": "boolean",

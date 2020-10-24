@@ -1,4 +1,5 @@
 const Apify = require('apify');
+const Puppeteer = require('puppeteer'); // eslint-disable-line no-unused-vars
 const { getCheckedVariable, log, filterPushedItemsAndUpdateState, finiteScroll } = require('./helpers');
 const { PAGE_TYPES, GRAPHQL_ENDPOINT, LOG_TYPES } = require('./consts');
 const errors = require('./errors');
@@ -30,18 +31,23 @@ const getCommentsFromGraphQL = ({ data }) => {
 
 /**
  * Loads data from entry date and then loads comments untill limit is reached
- * @param {Object} page Puppeteer Page object
- * @param {Object} request Apify Request object
- * @param {Object} itemSpec Parsed page data
- * @param {Object} entryData data from window._shared_data.entry_data
+ * @param {{
+ *   page: Puppeteer.Page,
+ *   request: Apify.Request,
+ *   itemSpec: any,
+ *   entryData: any,
+ *   scrollingState: any,
+ *   puppeteerPool: Apify.PuppeteerPool
+ * }} params
  */
 const scrapeComments = async ({ page, itemSpec, entryData, scrollingState, puppeteerPool }) => {
     // Check that current page is of a type which has comments
     if (itemSpec.pageType !== PAGE_TYPES.POST) throw errors.notPostPage();
 
     // Check if the page loaded properly
-    const el = await page.$('.EtaWk');
-    if (!el) {
+    try {
+        await page.waitForSelector('.EtaWk', { timeout: 5000 });
+    } catch (e) {
         throw new Error(`Post page didn't load properly, opening again`);
     }
 

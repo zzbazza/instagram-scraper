@@ -95,11 +95,14 @@ const scrapePosts = async ({ page, itemSpec, entryData, scrollingState, puppetee
     // Check if the posts loaded properly
     if (itemSpec.pageType === PAGE_TYPES.PROFILE) {
         const profilePageSel = '.ySN3v';
-        const el = await page.$(`${profilePageSel}`);
-        if (!el) {
+
+        try {
+            await page.waitForSelector(`${profilePageSel}`, { timeout: 5000 });
+        } catch (e) {
             log(itemSpec, 'Profile page didn\'t load properly, trying again...', LOG_TYPES.ERROR);
             throw new Error('Profile page didn\'t load properly, trying again...');
         }
+
         const privatePageSel = '.rkEop';
         const elPrivate = await page.$(`${privatePageSel}`);
         if (elPrivate) {
