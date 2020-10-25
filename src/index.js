@@ -192,9 +192,11 @@ async function main() {
             try {
                 switch (resultsType) {
                     case SCRAPE_TYPES.POSTS:
-                        return handlePostsGraphQLResponse({ page, response, scrollingState });
+                        await handlePostsGraphQLResponse({ page, response, scrollingState });
+                        break;
                     case SCRAPE_TYPES.COMMENTS:
-                        return handleCommentsGraphQLResponse({ page, response, scrollingState });
+                        await handleCommentsGraphQLResponse({ page, response, scrollingState });
+                        break;
                 }
             } catch (e) {
                 Apify.utils.log.error(`Error happened while processing response: ${e.message}`);
@@ -206,12 +208,28 @@ async function main() {
         // otherwise it will hang forever
         await page.evaluateOnNewDocument((pageType) => {
             window.addEventListener('load', () => {
-                document.body.style.overflow = pageType === 'post' || pageType === 'comments' ? 'hidden' : '';
-                const cookieModalButton = document.querySelectorAll('[role="presentation"] [role="dialog"] button:first-of-type');
+                const closeModal = () => {
+                    document.body.style.overflow = 'auto';
 
-                if (cookieModalButton.length) {
-                    cookieModalButton[0].click();
-                }
+                    const cookieModalButton = document.querySelectorAll('[role="presentation"] [role="dialog"] button:first-of-type');
+
+                    if (cookieModalButton.length) {
+                        for (const button of cookieModalButton) {
+                            if (!button.closest('#loginForm')) {
+                                button.click();
+                            } else {
+                                const loginModal = button.closest('[role="presentation"]');
+                                if (loginModal) {
+                                    loginModal.remove();
+                                }
+                            }
+                        }
+                    } else {
+                        setTimeout(closeModal, 1000);
+                    }
+                };
+
+                setTimeout(closeModal, 3000);
             });
         }, request.userData.pageType);
 
@@ -224,6 +242,7 @@ async function main() {
             } catch (e) {
                 // this usually means that the proxy 100% failing and will keep trying until failing all retries
                 session.retire();
+                await puppeteerPool.retire(page.browser());
                 throw new Error('Page isn\'t loading, trying another proxy');
             }
         })();
@@ -236,7 +255,7 @@ async function main() {
                     // choose other cookie from store or exit if no other available
                     loginCookiesStore.markAsBad(browser.process().pid);
                     if (loginCookiesStore.cookiesCount() > 0) {
-                        puppeteerPool.retire(browser);
+                        await puppeteerPool.retire(browser);
                         throw new Error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
                     } else {
                         Apify.utils.log.error('No login cookies available.');
@@ -313,11 +332,13 @@ async function main() {
             try {
                 switch (resultsType) {
                     case SCRAPE_TYPES.POSTS:
-                        return scrapePosts({ page, request, itemSpec, entryData, input, scrollingState, puppeteerPool });
+                        await scrapePosts({ page, request, itemSpec, entryData, input, scrollingState, puppeteerPool });
+                        break;
                     case SCRAPE_TYPES.COMMENTS:
-                        return scrapeComments({ page, itemSpec, entryData, scrollingState, puppeteerPool });
+                        await scrapeComments({ page, itemSpec, entryData, scrollingState, puppeteerPool });
+                        break;
                     case SCRAPE_TYPES.DETAILS:
-                        return scrapeDetails({
+                        await scrapeDetails({
                             input,
                             request,
                             itemSpec,
@@ -328,12 +349,15 @@ async function main() {
                             includeHasStories,
                             proxyUrl,
                         });
+                        break;
                     case SCRAPE_TYPES.STORIES:
-                        return scrapeStories({ request, page, data, proxyUrl });
+                        await scrapeStories({ request, page, data, proxyUrl });
+                        break;
                     default:
                         throw new Error('Not supported');
                 }
             } catch (e) {
+                Apify.utils.log.debug('Retiring browser', { url: request.url });
                 session.retire();
                 await puppeteerPool.retire(page.browser());
                 throw e;
