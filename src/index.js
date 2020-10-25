@@ -310,27 +310,33 @@ async function main() {
             await Apify.pushData(result);
         } else {
             page.itemSpec = itemSpec;
-            switch (resultsType) {
-                case SCRAPE_TYPES.POSTS:
-                    return scrapePosts({ page, request, itemSpec, entryData, input, scrollingState, puppeteerPool });
-                case SCRAPE_TYPES.COMMENTS:
-                    return scrapeComments({ page, itemSpec, entryData, scrollingState, puppeteerPool });
-                case SCRAPE_TYPES.DETAILS:
-                    return scrapeDetails({
-                        input,
-                        request,
-                        itemSpec,
-                        data,
-                        page,
-                        proxy,
-                        userResult,
-                        includeHasStories,
-                        proxyUrl,
-                    });
-                case SCRAPE_TYPES.STORIES:
-                    return scrapeStories({ request, page, data, proxyUrl });
-                default:
-                    throw new Error('Not supported');
+            try {
+                switch (resultsType) {
+                    case SCRAPE_TYPES.POSTS:
+                        return scrapePosts({ page, request, itemSpec, entryData, input, scrollingState, puppeteerPool });
+                    case SCRAPE_TYPES.COMMENTS:
+                        return scrapeComments({ page, itemSpec, entryData, scrollingState, puppeteerPool });
+                    case SCRAPE_TYPES.DETAILS:
+                        return scrapeDetails({
+                            input,
+                            request,
+                            itemSpec,
+                            data,
+                            page,
+                            proxy,
+                            userResult,
+                            includeHasStories,
+                            proxyUrl,
+                        });
+                    case SCRAPE_TYPES.STORIES:
+                        return scrapeStories({ request, page, data, proxyUrl });
+                    default:
+                        throw new Error('Not supported');
+                }
+            } catch (e) {
+                session.retire();
+                await puppeteerPool.retire(page.browser());
+                throw e;
             }
         }
     };
