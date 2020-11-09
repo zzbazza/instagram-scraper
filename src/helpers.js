@@ -74,6 +74,13 @@ const getItemSpec = (entryData) => {
         };
     }
 
+    // account blocked
+    if (entryData.Challenge) {
+        return {
+            pageType: PAGE_TYPES.CHALLENGE,
+        };
+    }
+
     Apify.utils.log.info('unsupported page', entryData);
 
     throw errors.unsupportedPage();

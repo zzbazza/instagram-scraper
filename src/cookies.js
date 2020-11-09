@@ -1,7 +1,9 @@
 const { cookiesNotArray } = require('./errors');
 const Apify = require('apify');
+const { utils: { log } } = Apify;
 
 const LoginCookiesStore = class CookiesStore {
+    cookiesStorage = 'LOGIN_COOKIES_STORE';
     cookiesStore = {};
     invalidCookiesStore = {};
     loginEnabled = false;
@@ -23,6 +25,10 @@ const LoginCookiesStore = class CookiesStore {
         this.loginEnabled = true;
         this.cookiesPerConcurrency = cookiesPerConcurrency;
         this.maxErrorCount = maxErrorCount;
+
+        Apify.events.on('migrating', async () => {
+            await this.storeCookiesSession();
+        });
     }
 
     buildCookie(loginCookies) {
@@ -44,11 +50,7 @@ const LoginCookiesStore = class CookiesStore {
 
     randomCookie(browserPid = null) {
         if (!this.usingLogin()) return null;
-        const keys = []
-        for (const key in this.cookiesStore) {
-            if (!this.cookiesStore[key].browserPid) keys.push(key)
-        }
-        if (keys.length === 0) return null;
+
         // check active instances && cleanup used cookies
         if (this.puppeteerPool) {
             const pids = this.activeBrowserPids(this.puppeteerPool);
@@ -58,9 +60,15 @@ const LoginCookiesStore = class CookiesStore {
             }
         }
 
+        const keys = []
+        for (const key in this.cookiesStore) {
+            if (!this.cookiesStore[key].browserPid) keys.push(key)
+        }
+        if (keys.length === 0) return null;
+
         const cookieKey = keys[(Math.floor(Math.random() * keys.length))];
         this.cookiesStore[cookieKey].browserPid = browserPid;
-        Apify.utils.log.debug(`Selected cookies session: ${cookieKey}`);
+        log.debug(`Selected cookies session: ${cookieKey}`);
         return this.cookiesStore[cookieKey]['cookies'];
     }
 
@@ -76,19 +84,31 @@ const LoginCookiesStore = class CookiesStore {
         const cookieKey = this.browserCookies(browserPid);
         if (!this.cookiesStore[cookieKey]) return;
 
-        if (this.cookiesStore[cookieKey].errorCount > this.maxErrorCount) {
-            Apify.utils.log.warning(`Removing cookies with session cookie: ${cookieKey}`);
-
-            this.invalidCookiesStore[cookieKey] = { ...this.cookiesStore[cookieKey] };
-            delete this.cookiesStore[cookieKey];
-
-            if (this.autoscaledPool) {
-                this.autoscaledPool.maxConcurrency = this.concurrency();
-                Apify.utils.log.warning(`Drop max concurrency to ${this.concurrency()} due to small amount of usable cookies.`)
-            } else Apify.utils.log.warning('AutoscaledPool missing for LoginCookiesStore')
+        if (this.cookiesStore[cookieKey].errorCount >= this.maxErrorCount) {
+            log.warning(`Removing cookies with session cookie: ${cookieKey}`);
+            this.invalidateCookies(cookieKey);
         } else {
             this.cookiesStore[cookieKey].errorCount += 1;
+            log.debug(`Increment error count to: ${this.cookiesStore[cookieKey].errorCount}`);
         }
+    }
+
+    retire(browserPid) {
+        const cookieKey = this.browserCookies(browserPid);
+        if (!this.cookiesStore[cookieKey]) return;
+        log.warning(`Retiring cookies with session cookie: ${cookieKey}`);
+
+        this.invalidateCookies(cookieKey);
+    }
+
+    invalidateCookies(cookieKey) {
+        this.invalidCookiesStore[cookieKey] = { ...this.cookiesStore[cookieKey] };
+
+        delete this.cookiesStore[cookieKey];
+        if (this.autoscaledPool) {
+            this.autoscaledPool.maxConcurrency = this.concurrency();
+            log.warning(`Drop max concurrency to ${this.concurrency()} due to small amount of usable cookies.`)
+        } else log.warning('AutoscaledPool missing for LoginCookiesStore');
     }
 
     markAsGood(browserPid) {
@@ -133,6 +153,29 @@ const LoginCookiesStore = class CookiesStore {
         for (const cookie of cookies) {
             if (cookie.name === 'sessionid')
                 return cookie.value;
+        }
+    }
+
+    async storeCookiesSession() {
+        const storage = await Apify.openKeyValueStore();
+        await storage.setValue(this.cookiesStorage, this.toJson());
+    }
+
+    async loadCookiesSession() {
+        const storage = await Apify.openKeyValueStore();
+        const state = await storage.getValue(this.cookiesStorage);
+        if (state && state.cookiesStore) {
+            this.cookiesStore = state.cookiesStore;
+            this.invalidCookiesStore = state.invalidCookiesStore;
+        }
+    }
+
+    toJson() {
+        return {
+            cookiesStore: this.cookiesStore,
+            invalidCookiesStore: this.invalidCookiesStore,
+            loginEnabled: this.loginEnabled,
+            cookiesPerConcurrency: this.cookiesPerConcurrency,
         }
     }
 }

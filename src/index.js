@@ -3,8 +3,8 @@ const _ = require('underscore');
 
 const { scrapePosts, handlePostsGraphQLResponse, scrapePost } = require('./posts');
 const { scrapeComments, handleCommentsGraphQLResponse } = require('./comments');
-const { scrapeStories } = require('./stories');
-const { scrapeDetails } = require('./details');
+const { handleStoriesGraphQLResponse, scrapeStories } = require('./stories');
+const { scrapeDetails, handleDetailsGraphQLResponse } = require('./details');
 const { searchUrls } = require('./search');
 const { getItemSpec, parseExtendOutputFunction, getPageTypeFromUrl } = require('./helpers');
 const { GRAPHQL_ENDPOINT, ABORT_RESOURCE_TYPES, ABORT_RESOURCE_URL_INCLUDES, ABORT_RESOURCE_URL_DOWNLOAD_JS, SCRAPE_TYPES, PAGE_TYPES } = require('./consts');
@@ -33,6 +33,8 @@ async function main() {
         useStealth = false,
         includeHasStories = false,
         cookiesPerConcurrency = 1,
+        noAdditionalRequests = false, // disable all additional requests
+        useIncognitoWindow = true // has to be set to false for cookies login to work
     } = input;
 
     const extendOutputFunction = parseExtendOutputFunction(input.extendOutputFunction);
@@ -53,6 +55,7 @@ async function main() {
 
     const loginCookiesStore = new LoginCookiesStore(loginCookies, cookiesPerConcurrency, maxErrorCount);
     if (loginCookiesStore.usingLogin()) {
+        await loginCookiesStore.loadCookiesSession();
         maxConcurrency = loginCookiesStore.concurrency();
         Apify.utils.log.warning(`Cookies were used, setting maxConcurrency to ${maxConcurrency}. Count of available cookies: ${loginCookiesStore.cookiesCount()}!`);
     }
@@ -112,6 +115,7 @@ async function main() {
         loginCookiesStore.setPuppeteerPool(puppeteerPool); // get puppeteerPool instance
         loginCookiesStore.setAutoscaledPool(autoscaledPool); // get autoscaledPool instance
         await page.setBypassCSP(true);
+        // TODO mostly not working probably should be completely removed
         if (loginUsername && loginPassword) {
             await login(loginUsername, loginPassword, page);
             const cookies = await page.cookies();
@@ -147,6 +151,12 @@ async function main() {
         Apify.utils.log.info(`Opening page type: ${pageType} on ${request.url}`);
 
         page.on('request', async (req) => {
+            // disable all js and xhr request when not required
+            if (noAdditionalRequests && req.resourceType() !== 'document') {
+                await req.abort();
+                return;
+            }
+
             // We need to load some JS when we want to scroll
             // Hashtag & place pages seems to require even more JS allowed but this needs more research
             // Stories needs JS files
@@ -196,6 +206,12 @@ async function main() {
                         break;
                     case SCRAPE_TYPES.COMMENTS:
                         await handleCommentsGraphQLResponse({ page, response, scrollingState });
+                        break;
+                    case SCRAPE_TYPES.STORIES:
+                        await handleStoriesGraphQLResponse({ page, response });
+                        break;
+                    case SCRAPE_TYPES.DETAILS:
+                        await handleDetailsGraphQLResponse({ page, response });
                         break;
                 }
             } catch (e) {
@@ -251,7 +267,7 @@ async function main() {
             try {
                 const browser = page.browser();
                 const viewerId = await page.evaluate(() => window._sharedData.config.viewerId);
-                if (!viewerId) {
+                if (!viewerId || response.status() === 429) {
                     // choose other cookie from store or exit if no other available
                     loginCookiesStore.markAsBad(browser.process().pid);
                     if (loginCookiesStore.cookiesCount() > 0) {
@@ -259,6 +275,7 @@ async function main() {
                         throw new Error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
                     } else {
                         Apify.utils.log.error('No login cookies available.');
+                        await loginCookiesStore.storeCookiesSession();
                         process.exit(1);
                     }
                 } else {
@@ -327,6 +344,34 @@ async function main() {
             _.extend(result, userResult);
 
             await Apify.pushData(result);
+        } else if (resultsType === SCRAPE_TYPES.STORIES && !noAdditionalRequests) {
+            page.itemSpec = itemSpec;
+
+            // account blocked page
+            if (itemSpec.pageType === PAGE_TYPES.CHALLENGE) {
+                const browser = page.browser();
+                loginCookiesStore.markAsBad(browser.process().pid);
+                await puppeteerPool.retire(browser);
+            }
+
+            // return if redirected to other page, no stories available
+            if (!request.loadedUrl.match(/\/stories\//)) {
+                Apify.utils.log.info(`No stories available: ${request.url}`)
+                return false;
+            }
+
+            // Wait for Data scraped from graphQL
+            let sleepLength = 0;
+            while (typeof page.storiesLoaded === 'undefined' && sleepLength < 10000) {
+                await sleep(100);
+                sleepLength += 100;
+            }
+            if (!page.storiesLoaded) {
+                // XHR are not loaded, almost always need to change proxy
+                session.retire();
+                await puppeteerPool.retire(page.browser());
+                throw new Error('JS needed for stories does not loaded properly, retrying...');
+            }
         } else {
             page.itemSpec = itemSpec;
             try {
@@ -348,6 +393,7 @@ async function main() {
                             userResult,
                             includeHasStories,
                             proxyUrl,
+                            noAdditionalRequests,
                         });
                         break;
                     case SCRAPE_TYPES.STORIES:
@@ -386,6 +432,9 @@ async function main() {
         if (cookies && cookies.length) {
             const page = await browser.newPage();
             await page.setCookie(...cookies);
+            await page.close();
+        } else if (loginCookiesStore.usingLogin()) {
+            throw new Error('No cookies available for starting new browser.')
         }
 
         return browser;
@@ -399,7 +448,7 @@ async function main() {
         gotoFunction,
         maxRequestRetries,
         puppeteerPoolOptions: {
-            useIncognitoPages: true,
+            useIncognitoWindow: !loginCookiesStore.usingLogin() && useIncognitoWindow, // cookies are lost in incognito page..
             maxOpenPagesPerInstance: 1,
         },
         useSessionPool: true,
@@ -419,7 +468,11 @@ async function main() {
     });
 
     await crawler.run();
-    if (loginCookiesStore.invalidCookies().length > 0) Apify.utils.log.warning(`Invalid cookies: ${loginCookiesStore.invalidCookies().join('; ')}`);
+    if (loginCookiesStore.usingLogin()) {
+        await loginCookiesStore.storeCookiesSession();
+        if (loginCookiesStore.invalidCookies().length > 0)
+            Apify.utils.log.warning(`Invalid cookies: ${loginCookiesStore.invalidCookies().join('; ')}`);
+    }
 }
 
 module.exports = main;

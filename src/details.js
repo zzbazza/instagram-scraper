@@ -198,16 +198,29 @@ const getOutputFromEntryData = async ({ input, itemSpec, request, entryData, pag
 };
 
 // Takes correct variable from window object and formats it into proper output
-const scrapeDetails = async ({ input, request, itemSpec, data, page, proxy, userResult, includeHasStories, proxyUrl }) => {
+const scrapeDetails = async ({ input, request, itemSpec, data, page, proxy, userResult, includeHasStories, proxyUrl, noAdditionalRequests }) => {
     const entryData = data.entry_data;
-    let hasPublicStories;
-    if (includeHasStories)
-        hasPublicStories = await loadHasPublicStories(request, page, data, proxyUrl);
 
     const output = await getOutputFromEntryData({ input, itemSpec, request, entryData, page, proxy, userResult });
     _.extend(output, userResult);
-    if (includeHasStories)
+
+    if (includeHasStories) {
+        let hasPublicStories;
+        if (noAdditionalRequests) {
+            hasPublicStories = await loadHasPublicStories({ request, page, data, proxyUrl });
+        } else {
+            let sleepTime = 0;
+            while ((typeof page.has_public_story).toString() === "undefined" && sleepTime < 10000) {
+                Apify.utils.log.info(`HasPublic stories: ${page.has_public_story}`)
+                await sleep(100);
+                sleepTime += 100;
+            }
+            if ((typeof page.has_public_story).toString() === "undefined")
+                Apify.utils.log.warning('has_public_story not loaded from XHR.');
+            hasPublicStories = page.has_public_story;
+        }
         output.hasPublicStory = hasPublicStories;
+    }
     await Apify.pushData(output);
     log(itemSpec, 'Page details saved, task finished');
 };
@@ -220,7 +233,7 @@ const scrapeDetails = async ({ input, request, itemSpec, data, page, proxy, user
  * @param {String} proxyUrl
  * @returns {Promise<*>}
  */
-const loadHasPublicStories = async (request, page, data, proxyUrl) => {
+const loadHasPublicStories = async ({ request, page, data, proxyUrl }) => {
     const csrf_token = data.config.csrf_token;
     if (!data.entry_data.ProfilePage) throw 'Not a profile page';
     const userId = data.entry_data.ProfilePage[0].graphql.user.id;
@@ -236,7 +249,17 @@ const loadHasPublicStories = async (request, page, data, proxyUrl) => {
     }
 }
 
+const handleDetailsGraphQLResponse = async ({ response, page }) => {
+    const responseUrl = response.url();
+    // Check queries for other stuff then stories
+    if (!responseUrl.includes('%22user_id%22')) return;
+
+    const responseData = await response.json();
+    page.has_public_story = !!responseData.data.user.has_public_story;
+}
+
 module.exports = {
     scrapeDetails,
     formatSinglePost,
+    handleDetailsGraphQLResponse,
 };

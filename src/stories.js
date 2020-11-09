@@ -1,7 +1,5 @@
 const Apify = require('apify');
-const { utils: { requestAsBrowser } } = Apify;
 const { storiesNotLoaded } = require('./errors');
-const { HEADERS } = require('./consts');
 const { loadXHR } = require('./helpers');
 
 /**
@@ -24,16 +22,23 @@ const getStoriesFromGraphQL = (data) => {
  * Takes GraphQL response, checks that it's a response with more stories and then parses the stories from it
  * @param {Object} response Puppeteer Response object
  */
-async function handleStoriesGraphQLResponse(response) {
-    const responseUrl = response.url;
+async function handleStoriesGraphQLResponse({ page, response, manualRequest = false }) {
+    const responseUrl = manualRequest ? response.url : response.url();
     // Check queries for other stuff then stories
     if (!responseUrl.includes('%22reel_ids%22')) return;
 
-    const data = await JSON.parse(response.body);
+    let data;
+    if (manualRequest)
+        data = await JSON.parse(response.body); // for use with scrapeStories()
+    else
+        data = await response.json();
     const timeline = getStoriesFromGraphQL(data.data);
 
     Apify.utils.log.info(`Scraped ${timeline.storiesCount} stories`);
     await Apify.pushData(timeline.stories);
+
+    if (page)
+        page.storiesLoaded = true;
 }
 
 /**
@@ -56,12 +61,13 @@ const scrapeStories = async ({ request, page, data, proxyUrl }) => {
     const response = await loadXHR({ request, page, url, csrf_token, proxyUrl });
 
     if (response.statusCode === 200) {
-        await handleStoriesGraphQLResponse(response);
+        await handleStoriesGraphQLResponse({ response, manualRequest: true });
     } else {
         throw storiesNotLoaded(reelId);
     }
 }
 
 module.exports = {
+    handleStoriesGraphQLResponse,
     scrapeStories,
 };
