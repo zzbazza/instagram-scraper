@@ -14,6 +14,7 @@ module.exports = {
         HASHTAG: 'hashtag',
         POST: 'post',
         STORY: 'story',
+        CHALLENGE: 'challenge',
     },
     // Types of scrapes this actor can do
     SCRAPE_TYPES: {

@@ -53,6 +53,7 @@ async function main() {
 
     const loginCookiesStore = new LoginCookiesStore(loginCookies, cookiesPerConcurrency, maxErrorCount);
     if (loginCookiesStore.usingLogin()) {
+        await loginCookiesStore.loadCookiesSession();
         maxConcurrency = loginCookiesStore.concurrency();
         Apify.utils.log.warning(`Cookies were used, setting maxConcurrency to ${maxConcurrency}. Count of available cookies: ${loginCookiesStore.cookiesCount()}!`);
     }
@@ -213,7 +214,7 @@ async function main() {
             try {
                 const browser = page.browser();
                 const viewerId = await page.evaluate(() => window._sharedData.config.viewerId);
-                if (!viewerId) {
+                if (!viewerId || response.status() === 429) {
                     // choose other cookie from store or exit if no other available
                     loginCookiesStore.markAsBad(browser.process().pid);
                     if (loginCookiesStore.cookiesCount() > 0) {
@@ -221,6 +222,7 @@ async function main() {
                         throw new Error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
                     } else {
                         Apify.utils.log.error('No login cookies available.');
+                        await loginCookiesStore.storeCookiesSession();
                         process.exit(1);
                     }
                 } else {
@@ -284,6 +286,21 @@ async function main() {
             }, input.extendOutputFunction);
         }
 
+        // account blocked page
+        if (itemSpec.pageType === PAGE_TYPES.CHALLENGE) {
+            const browser = page.browser();
+            loginCookiesStore.markAsBad(browser.process().pid);
+            await puppeteerPool.retire(browser);
+        }
+
+        if (resultsType === SCRAPE_TYPES.STORIES) {
+            // return if redirected to other page, no stories available
+            if (!request.loadedUrl.match(/\/stories\//)) {
+                Apify.utils.log.info(`No stories available: ${request.url}`)
+                return false;
+            }
+        }
+
         if (request.userData.label === 'postDetail') {
             const result = scrapePost(request, itemSpec, entryData);
             _.extend(result, userResult);
@@ -331,6 +348,9 @@ async function main() {
         if (cookies && cookies.length) {
             const page = await browser.newPage();
             await page.setCookie(...cookies);
+            await page.close();
+        } else if (loginCookiesStore.usingLogin()) {
+            throw new Error('No cookies available for starting new browser.')
         }
 
         return browser;
@@ -373,7 +393,11 @@ async function main() {
     });
 
     await crawler.run();
-    if (loginCookiesStore.invalidCookies().length > 0) Apify.utils.log.warning(`Invalid cookies: ${loginCookiesStore.invalidCookies().join('; ')}`);
+    if (loginCookiesStore.usingLogin()) {
+        await loginCookiesStore.storeCookiesSession();
+        if (loginCookiesStore.invalidCookies().length > 0)
+            Apify.utils.log.warning(`Invalid cookies: ${loginCookiesStore.invalidCookies().join('; ')}`);
+    }
 }
 
 module.exports = main;
