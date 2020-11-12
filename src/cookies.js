@@ -26,7 +26,7 @@ const LoginCookiesStore = class CookiesStore {
         this.cookiesPerConcurrency = cookiesPerConcurrency;
         this.maxErrorCount = maxErrorCount;
 
-        Apify.events.on('migrating', async () => {
+        Apify.events.on('persistState', async (_o) => {
             await this.storeCookiesSession();
         });
     }

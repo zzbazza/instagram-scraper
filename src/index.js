@@ -13,7 +13,7 @@ const errors = require('./errors');
 const { login } = require('./login');
 const { LoginCookiesStore } = require('./cookies');
 
-const { sleep } = Apify.utils;
+const { sleep, log } = Apify.utils;
 
 async function main() {
     const input = await Apify.getInput();
@@ -55,7 +55,7 @@ async function main() {
     if (loginCookiesStore.usingLogin()) {
         await loginCookiesStore.loadCookiesSession();
         maxConcurrency = loginCookiesStore.concurrency();
-        Apify.utils.log.warning(`Cookies were used, setting maxConcurrency to ${maxConcurrency}. Count of available cookies: ${loginCookiesStore.cookiesCount()}!`);
+        log.warning(`Cookies were used, setting maxConcurrency to ${maxConcurrency}. Count of available cookies: ${loginCookiesStore.cookiesCount()}!`);
     }
 
     try {
@@ -64,23 +64,23 @@ async function main() {
         if (!Object.values(SCRAPE_TYPES).includes(resultsType)) throw errors.unsupportedType(resultsType);
         if (SCRAPE_TYPES.COOKIES === resultsType && (!loginUsername || !loginPassword)) throw errors.credentialsRequired();
     } catch (error) {
-        Apify.utils.log.info('--  --  --  --  --');
-        Apify.utils.log.info(' ');
-        Apify.utils.log.error('Run failed because the provided input is incorrect:');
-        Apify.utils.log.error(error.message);
-        Apify.utils.log.info(' ');
-        Apify.utils.log.info('--  --  --  --  --');
+        log.info('--  --  --  --  --');
+        log.info(' ');
+        log.error('Run failed because the provided input is incorrect:');
+        log.error(error.message);
+        log.info(' ');
+        log.info('--  --  --  --  --');
         process.exit(1);
     }
 
     if (proxy && proxy.useApifyProxy && (!proxy.apifyProxyGroups || !proxy.apifyProxyGroups.includes('RESIDENTIAL'))) {
-        Apify.utils.log.warning('You are using Apify proxy but not residential group! It is very likely it will not work properly. Please contact support@apify.com for access to residential proxy.');
+        log.warning('You are using Apify proxy but not residential group! It is very likely it will not work properly. Please contact support@apify.com for access to residential proxy.');
     }
 
     const proxyConfiguration = await Apify.createProxyConfiguration(proxy);
     let urls;
     if (Array.isArray(directUrls) && directUrls.length > 0) {
-        Apify.utils.log.warning('Search is disabled when Direct URLs are used');
+        log.warning('Search is disabled when Direct URLs are used');
         urls = directUrls;
     } else {
         urls = await searchUrls(input, proxyConfiguration ? proxyConfiguration.newUrl() : undefined);
@@ -94,11 +94,11 @@ async function main() {
         },
     }));
 
-    Apify.utils.log.info('Parsed start URLs:');
+    log.info('Parsed start URLs:');
     console.dir(requestListSources);
 
     if (requestListSources.length === 0) {
-        Apify.utils.log.info('No URLs to process');
+        log.info('No URLs to process');
         process.exit(0);
     }
 
@@ -128,10 +128,10 @@ async function main() {
         await page.setRequestInterception(true);
 
         const isScrollPage = resultsType === SCRAPE_TYPES.POSTS || resultsType === SCRAPE_TYPES.COMMENTS;
-        Apify.utils.log.debug(`Is scroll page: ${isScrollPage}`);
+        log.debug(`Is scroll page: ${isScrollPage}`);
 
         const { pageType } = request.userData;
-        Apify.utils.log.info(`Opening page type: ${pageType} on ${request.url}`);
+        log.info(`Opening page type: ${pageType} on ${request.url}`);
 
         page.on('request', (req) => {
             // We need to load some JS when we want to scroll
@@ -148,27 +148,12 @@ async function main() {
                 || ABORT_RESOURCE_URL_INCLUDES.some((urlMatch) => req.url().includes(urlMatch))
                 || (isJSBundle && abortJSBundle && pageType)
             ) {
-                // Apify.utils.log.debug(`Aborting url: ${req.url()}`);
+                // log.debug(`Aborting url: ${req.url()}`);
                 return req.abort();
             }
-            // Apify.utils.log.debug(`Processing url: ${req.url()}`);
+            // log.debug(`Processing url: ${req.url()}`);
             req.continue();
         });
-        // TODO this will increase network traffic even when it is not necessary.
-        // await Apify.utils.puppeteer.blockRequests(page, {
-        //     urlPatterns: [
-        //         '.ico',
-        //         '.png',
-        //         '.mp4',
-        //         '.avi',
-        //         '.webp',
-        //         '.jpg',
-        //         '.jpeg',
-        //         '.gif',
-        //         '.svg',
-        //     ],
-        //     extraUrlPatterns: ABORT_RESOURCE_URL_INCLUDES,
-        // });
 
         page.on('response', async (response) => {
             const responseUrl = response.url();
@@ -187,7 +172,7 @@ async function main() {
                         return handleCommentsGraphQLResponse({ page, response, scrollingState });
                 }
             } catch (e) {
-                Apify.utils.log.error(`Error happened while processing response: ${e.message}`);
+                log.error(`Error happened while processing response: ${e.message}`);
                 console.log(e.stack);
             }
         });
@@ -213,7 +198,7 @@ async function main() {
         if (loginCookiesStore.usingLogin()) {
             try {
                 const browser = page.browser();
-                const viewerId = await page.evaluate(() => window._sharedData.config.viewerId);
+                const viewerId = await page.evaluate(() => window._sharedData ? window._sharedData.config.viewerId : null);
                 if (!viewerId || response.status() === 429) {
                     // choose other cookie from store or exit if no other available
                     loginCookiesStore.markAsBad(browser.process().pid);
@@ -221,15 +206,13 @@ async function main() {
                         puppeteerPool.retire(browser);
                         throw new Error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
                     } else {
-                        Apify.utils.log.error('No login cookies available.');
+                        log.error('No login cookies available.');
                         await loginCookiesStore.storeCookiesSession();
                         process.exit(1);
                     }
-                } else {
-                    loginCookiesStore.markAsGood(browser.process().pid);
                 }
             } catch (loginError) {
-                Apify.utils.log.error(loginError);
+                log.error(loginError);
                 throw new Error('Page didn\'t load properly with login, retrying...');
             }
         }
@@ -245,16 +228,16 @@ async function main() {
 
         // this can randomly happen
         if (!response) {
-            throw new Error('Response is undefined');
+            throw `Response is undefined, retrying request later. Url: ${request.url}`;
         }
 
         if (response.status() === 404) {
-            Apify.utils.log.error(`Page "${request.url}" does not exist.`);
+            log.error(`Page "${request.url}" does not exist.`);
             return;
         }
         const error = await page.$('body.p-error');
         if (error) {
-            Apify.utils.log.error(`Page "${request.url}" is private and cannot be displayed.`);
+            log.error(`Page "${request.url}" is private and cannot be displayed.`);
             return;
         }
         // eslint-disable-next-line no-underscore-dangle
@@ -287,16 +270,19 @@ async function main() {
         }
 
         // account blocked page
+        const browser = page.browser();
         if (itemSpec.pageType === PAGE_TYPES.CHALLENGE) {
-            const browser = page.browser();
             loginCookiesStore.markAsBad(browser.process().pid);
             await puppeteerPool.retire(browser);
+            throw 'Account blocked, retry page later.'
+        } else {
+            loginCookiesStore.markAsGood(browser.process().pid);
         }
 
         if (resultsType === SCRAPE_TYPES.STORIES) {
             // return if redirected to other page, no stories available
             if (!request.loadedUrl.match(/\/stories\//)) {
-                Apify.utils.log.info(`No stories available: ${request.url}`)
+                log.info(`No stories available: ${request.url}`)
                 return false;
             }
         }
@@ -350,7 +336,8 @@ async function main() {
             await page.setCookie(...cookies);
             await page.close();
         } else if (loginCookiesStore.usingLogin()) {
-            throw new Error('No cookies available for starting new browser.')
+            log.error('No cookies available for starting new browser.');
+            process.exit(1);
         }
 
         return browser;
@@ -370,6 +357,7 @@ async function main() {
         launchPuppeteerOptions: {
             stealth: true,
             useChrome: Apify.isAtHome(),
+            headless: !Apify.isAtHome(),
             stealthOptions: {
                 addLanguage: false,
             },
@@ -384,7 +372,7 @@ async function main() {
         handlePageFunction,
         // If request failed 4 times then this function is executed.
         handleFailedRequestFunction: async ({ request }) => {
-            Apify.utils.log.error(`${request.url}: Request ${request.url} failed ${maxRequestRetries + 1} times, not retrying any more`);
+            log.error(`${request.url}: Request ${request.url} failed ${maxRequestRetries + 1} times, not retrying any more`);
             await Apify.pushData({
                 '#debug': Apify.utils.createRequestDebugInfo(request),
                 '#error': request.url,
@@ -396,7 +384,7 @@ async function main() {
     if (loginCookiesStore.usingLogin()) {
         await loginCookiesStore.storeCookiesSession();
         if (loginCookiesStore.invalidCookies().length > 0)
-            Apify.utils.log.warning(`Invalid cookies: ${loginCookiesStore.invalidCookies().join('; ')}`);
+            log.warning(`Invalid cookies: ${loginCookiesStore.invalidCookies().join('; ')}`);
     }
 }
 
