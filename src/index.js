@@ -203,7 +203,9 @@ async function main() {
                     // choose other cookie from store or exit if no other available
                     loginCookiesStore.markAsBad(browser.process().pid);
                     if (loginCookiesStore.cookiesCount() > 0) {
-                        puppeteerPool.retire(browser);
+                        // no need to retire using puppeteerPool, using only one tab. Better to close by force
+                        // await puppeteerPool.retire(browser);
+                        await browser.close();
                         throw new Error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones.');
                     } else {
                         log.error('No login cookies available.');
@@ -249,7 +251,9 @@ async function main() {
         const { entry_data: entryData } = data;
 
         if (entryData.LoginAndSignupPage) {
-            await puppeteerPool.retire(page.browser());
+            // no need to retire using puppeteerPool, using only one tab. Better to close by force
+            // await puppeteerPool.retire(page.browser());
+            await browser.close();
             throw errors.redirectedToLogin();
         }
 
@@ -273,7 +277,9 @@ async function main() {
         const browser = page.browser();
         if (itemSpec.pageType === PAGE_TYPES.CHALLENGE) {
             loginCookiesStore.markAsBad(browser.process().pid);
-            await puppeteerPool.retire(browser);
+            // no need to retire using puppeteerPool, using only one tab. Better to close by force
+            // await puppeteerPool.retire(browser);
+            await browser.close();
             throw 'Account blocked, retry page later.'
         } else {
             loginCookiesStore.markAsGood(browser.process().pid);
