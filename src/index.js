@@ -203,6 +203,7 @@ async function main() {
                     // choose other cookie from store or exit if no other available
                     loginCookiesStore.markAsBad(browser.process().pid);
                     if (loginCookiesStore.cookiesCount() > 0) {
+                        log.error('Failed to log in using cookies, they are probably no longer usable and you need to set new ones. Closing browser forcibly.');
                         // no need to retire using puppeteerPool, using only one tab. Better to close by force
                         // await puppeteerPool.retire(browser);
                         await browser.close();
@@ -251,6 +252,7 @@ async function main() {
         const { entry_data: entryData } = data;
 
         if (entryData.LoginAndSignupPage) {
+            log.error(`${errors.redirectedToLogin()} Closing browser forcibly.`);
             // no need to retire using puppeteerPool, using only one tab. Better to close by force
             // await puppeteerPool.retire(page.browser());
             await browser.close();
@@ -277,10 +279,11 @@ async function main() {
         const browser = page.browser();
         if (itemSpec.pageType === PAGE_TYPES.CHALLENGE) {
             loginCookiesStore.markAsBad(browser.process().pid);
+            log.error('Account blocked, retry page later. Closing browser forcibly.');
             // no need to retire using puppeteerPool, using only one tab. Better to close by force
             // await puppeteerPool.retire(browser);
             await browser.close();
-            throw 'Account blocked, retry page later.'
+            throw 'Account blocked, retry page later.';
         } else {
             loginCookiesStore.markAsGood(browser.process().pid);
         }
