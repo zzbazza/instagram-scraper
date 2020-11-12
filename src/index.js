@@ -357,7 +357,7 @@ async function main() {
         launchPuppeteerOptions: {
             stealth: true,
             useChrome: Apify.isAtHome(),
-            headless: !Apify.isAtHome(),
+            // headless: !Apify.isAtHome(),
             stealthOptions: {
                 addLanguage: false,
             },
